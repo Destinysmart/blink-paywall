@@ -19,7 +19,10 @@
         return document.getElementById(id);
     };
 
-    var state = { usernameOk: false, previewInstance: null };
+    var state = { usernameOk: false, previewInstance: null, server: null };
+
+    // The connected server (address + password) lives in this browser only.
+    var SERVER_KEY = 'blink-paywall-generator:server';
 
     // ── Username validation (custodial via usernameAvailable, Spark via LNURL probe) ──
 
@@ -163,6 +166,198 @@
         }
         status.textContent =
             'The server answered ' + response.status + '. Check the URL \u2014 items live at /content/<id>.';
+    }
+
+    // ── Hard mode: your server ──
+    //
+    // The generator is a static page; the owner's paywall server has a small
+    // password-protected API for items (GET/PUT/DELETE /admin/items). Connect
+    // once, then items are written and priced here and saved there.
+
+    function serverOrigin(value) {
+        try {
+            return new URL(String(value || '').trim()).origin;
+        } catch {
+            return null;
+        }
+    }
+
+    function rememberServer(server) {
+        try {
+            if (server) localStorage.setItem(SERVER_KEY, JSON.stringify(server));
+            else localStorage.removeItem(SERVER_KEY);
+        } catch {
+            // storage unavailable (private mode): the connection just is not remembered
+        }
+    }
+
+    function recallServer() {
+        try {
+            return JSON.parse(localStorage.getItem(SERVER_KEY) || 'null');
+        } catch {
+            return null;
+        }
+    }
+
+    async function serverRequest(path, options) {
+        var server = state.server;
+        var init = options || {};
+        init.headers = Object.assign({ Authorization: 'Bearer ' + server.password }, init.headers || {});
+        var response = await fetch(server.origin + path, init);
+        var data = null;
+        try {
+            data = await response.json();
+        } catch {
+            // not JSON (a proxy error page, say): fall through to the status check
+        }
+        if (!response.ok) {
+            var reason = (data && data.error) || 'the server answered ' + response.status;
+            if (response.status === 401) reason = 'Wrong password.';
+            throw new Error(reason);
+        }
+        return data;
+    }
+
+    async function connectServer() {
+        var status = $('server-status');
+        var origin = serverOrigin($('server-url').value);
+        var password = $('server-password').value;
+        if (!origin || !password) {
+            status.className = 'error';
+            status.textContent = 'Enter the server address and the password for saving items.';
+            return;
+        }
+        status.className = 'hint';
+        status.textContent = 'Connecting\u2026';
+        state.server = { origin: origin, password: password, username: '', items: [] };
+        try {
+            var info = await fetch(origin + '/.well-known/blink-paywall.json').then(function (r) {
+                return r.ok ? r.json() : null;
+            });
+            if (!info || !info.blinkPaywall) {
+                throw new Error('That address is not a Blink Paywall server.');
+            }
+            state.server.username = info.username;
+            await refreshServerItems();
+        } catch (error) {
+            state.server = null;
+            $('server-items').hidden = true;
+            status.className = 'error';
+            status.textContent = error.message === 'Failed to fetch'
+                ? 'Could not reach that address from the browser.'
+                : error.message;
+            update();
+            return;
+        }
+        rememberServer({ origin: origin, password: password });
+        status.className = 'success';
+        status.textContent =
+            '\u2713 Connected \u2014 paying @' + state.server.username +
+            ', ' + state.server.items.length + ' item' + (state.server.items.length === 1 ? '' : 's');
+        update();
+    }
+
+    async function refreshServerItems() {
+        var data = await serverRequest('/admin/items');
+        state.server.items = data.items || [];
+        renderServerItems();
+    }
+
+    function renderServerItems() {
+        var list = $('server-items-list');
+        list.innerHTML = '';
+        var items = (state.server && state.server.items) || [];
+        $('server-items').hidden = !items.length;
+        items.forEach(function (item) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'chip' + (item.editable ? '' : ' readonly') + (item.id === currentId() ? ' selected' : '');
+            chip.textContent = item.title + ' \u00b7 ' + formatItemPrice(item);
+            chip.title = item.editable ? item.url : item.url + ' (a file on the server; saving here makes an editable copy)';
+            chip.addEventListener('click', function () {
+                loadServerItem(item);
+            });
+            list.appendChild(chip);
+        });
+    }
+
+    function formatItemPrice(item) {
+        return item.currency === 'sats' ? item.price + ' sats' : item.price + ' ' + item.currency;
+    }
+
+    function currentId() {
+        return $('item-id').value.trim() || slugify($('title').value);
+    }
+
+    /** Put a server item into the form so the next Save updates it. */
+    function loadServerItem(item) {
+        $('item-id').value = item.id;
+        $('title').value = item.title;
+        $('amount').value = item.price;
+        $('currency').value = item.currency;
+        if ($('currency').value !== item.currency) $('currency').value = 'sats';
+        var kind = item.kind === 'link' ? 'link' : 'article';
+        document.querySelector('input[name="hard-type"][value="' + kind + '"]').checked = true;
+        $('hard-markdown').value = item.markdown || item.html || '';
+        $('hard-redirect').value = item.redirect || '';
+        $('l402-url').value = item.url;
+        $('save-status').textContent = '';
+        update();
+    }
+
+    async function saveItem() {
+        var status = $('save-status');
+        if (!state.server) {
+            status.className = 'error';
+            status.textContent = 'Connect your server first (step above).';
+            return;
+        }
+        var id = currentId();
+        var kind = document.querySelector('input[name="hard-type"]:checked').value;
+        var body = {
+            title: $('title').value.trim() || id,
+            price: Number($('amount').value),
+            currency: $('currency').value,
+        };
+        if (kind === 'link') body.redirect = $('hard-redirect').value.trim();
+        else body.markdown = $('hard-markdown').value;
+        status.className = 'hint';
+        status.textContent = 'Saving\u2026';
+        try {
+            var saved = await serverRequest('/admin/items/' + encodeURIComponent(id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            $('item-id').value = saved.id;
+            $('l402-url').value = saved.url;
+            await refreshServerItems();
+            status.className = 'success';
+            status.textContent = '\u2713 Saved \u2014 live at ' + saved.url;
+        } catch (error) {
+            status.className = 'error';
+            status.textContent = error.message;
+        }
+        update();
+    }
+
+    async function deleteItem() {
+        var status = $('save-status');
+        if (!state.server) return;
+        var id = currentId();
+        try {
+            await serverRequest('/admin/items/' + encodeURIComponent(id), { method: 'DELETE' });
+            $('l402-url').value = '';
+            $('hard-markdown').value = '';
+            $('hard-redirect').value = '';
+            await refreshServerItems();
+            status.className = 'hint';
+            status.textContent = 'Deleted ' + id + ' from the server.';
+        } catch (error) {
+            status.className = 'error';
+            status.textContent = error.message;
+        }
+        update();
     }
 
     // ── Snippet building ──
@@ -311,16 +506,15 @@
             embedUrl: $('embed-url').value.trim(),
             redirectUrl: $('redirect-url').value.trim(),
             l402Url: $('l402-url').value.trim(),
+            hardType: document.querySelector('input[name="hard-type"]:checked').value,
         };
     }
 
     function buildAttributes(config) {
         var attributes = [['data-blink-paywall', null]];
         if (config.type === 'l402') {
-            attributes.push([
-                'data-l402',
-                config.l402Url || 'https://your-server.com/content/' + config.id,
-            ]);
+            var base = state.server ? state.server.origin : 'https://your-server.com';
+            attributes.push(['data-l402', config.l402Url || base + '/content/' + config.id]);
         } else {
             attributes.push(['data-username', config.username || 'YOUR_BLINK_USERNAME']);
             attributes.push(['data-amount', config.amount || '1000']);
@@ -439,16 +633,25 @@
         clearTimeout(hashTimer);
         hashTimer = setTimeout(syncHash, 300);
         var hard = config.type === 'l402';
-        // Each path shows only its own steps: hard mode keeps the username,
-        // the unlock and the price on the server.
+        // Each path shows only its own steps. Hard mode writes the item here
+        // and saves it to the owner's server; the username lives there.
         $('server-step').hidden = !hard;
+        $('hard-unlock-step').hidden = !hard;
+        $('save-step').hidden = !hard;
         $('username-step').hidden = hard;
         $('unlock-step').hidden = hard;
-        $('price-step').hidden = hard;
         $('hard-mode-note').style.display = hard ? 'block' : 'none';
         ['content', 'secret', 'embed', 'redirect'].forEach(function (name) {
             $('field-' + name).hidden = name !== config.type;
         });
+        $('field-hard-article').hidden = config.hardType !== 'article';
+        $('field-hard-link').hidden = config.hardType !== 'link';
+        $('save-id').textContent = config.id;
+        var current = state.server && state.server.items.find(function (item) {
+            return item.id === config.id && item.editable;
+        });
+        $('delete-item').hidden = !current;
+        if (state.server) renderServerItems();
         document.querySelectorAll('.type-card').forEach(function (card) {
             card.classList.toggle('selected', card.querySelector('input').checked);
         });
@@ -471,13 +674,20 @@
         if (event.key === 'Enter') checkUsername();
     });
 
+    $('connect-server').addEventListener('click', connectServer);
+    $('server-password').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') connectServer();
+    });
+    $('save-item').addEventListener('click', saveItem);
+    $('delete-item').addEventListener('click', deleteItem);
+
     $('check-l402').addEventListener('click', checkEndpoint);
     $('l402-url').addEventListener('keydown', function (event) {
         if (event.key === 'Enter') checkEndpoint();
     });
 
     document.querySelectorAll('input, select, textarea').forEach(function (input) {
-        if (input.id === 'username') return;
+        if (input.id === 'username' || input.id === 'server-url' || input.id === 'server-password') return;
         input.addEventListener('input', update);
         input.addEventListener('change', update);
     });
@@ -515,6 +725,12 @@
     // Restore a saved setup before the first render. A username in the link is
     // validated as if it had been typed, so the preview mounts ready to pay.
     var restored = applyHash(window.location.hash);
+    var remembered = recallServer();
+    if (remembered && remembered.origin && remembered.password) {
+        $('server-url').value = remembered.origin;
+        $('server-password').value = remembered.password;
+    }
     update();
     if (restored && $('username').value) checkUsername();
+    if ($('server-url').value && $('server-password').value) connectServer();
 })();

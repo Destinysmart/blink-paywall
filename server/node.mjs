@@ -9,13 +9,15 @@
  *   CONTENT_FILE         path to content.json (default: the one next to this file);
  *                        files in the items/ folder next to it are added on top
  *   WIDGET_URL           widget bundle the demo page loads (default: this repo's Pages build)
+ *   ADMIN_PASSWORD       lets the generator save items to this server; unset = saving is off
+ *   SAVED_ITEMS_FILE     where those saved items are kept (default: saved-items.json next to content.json)
  *   PORT                 default 4402
  */
 
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadContent } from './load-content.mjs';
+import { createFileStore, loadContent } from './load-content.mjs';
 import { bytesToHex } from './macaroon.js';
 import { createPaywall } from './paywall.js';
 
@@ -42,24 +44,37 @@ try {
         tokenTtlDays: process.env.TOKEN_TTL_DAYS,
         invoicesPerMinute: process.env.INVOICES_PER_MINUTE,
         widgetUrl: process.env.WIDGET_URL,
+        adminPassword: process.env.ADMIN_PASSWORD,
+        store: createFileStore(
+            process.env.SAVED_ITEMS_FILE
+                ? path.resolve(process.env.SAVED_ITEMS_FILE)
+                : path.join(serverDir, 'saved-items.json')
+        ),
     });
 } catch (error) {
     console.error(error.message);
     process.exit(1);
 }
 
-function toRequest(req) {
+async function toRequest(req) {
     const headers = new Headers();
     for (const [name, value] of Object.entries(req.headers)) {
         if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(', ') : value);
     }
     const host = req.headers.host || `localhost:${PORT}`;
-    return new Request(`http://${host}${req.url}`, { method: req.method, headers });
+    const init = { method: req.method, headers };
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+        // Saves from the generator arrive as PUT with a JSON body.
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        if (chunks.length) init.body = Buffer.concat(chunks);
+    }
+    return new Request(`http://${host}${req.url}`, init);
 }
 
 http.createServer(async (req, res) => {
     try {
-        const response = await paywall.handle(toRequest(req), { ip: req.socket.remoteAddress });
+        const response = await paywall.handle(await toRequest(req), { ip: req.socket.remoteAddress });
         res.writeHead(response.status, Object.fromEntries(response.headers));
         res.end(Buffer.from(await response.arrayBuffer()));
     } catch (error) {

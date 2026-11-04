@@ -4,6 +4,7 @@ node_modules/
 coverage/
 # local secrets / state of the Cloudflare Workers deployment of server/
 server/.dev.vars
+server/saved-items.json
 server/.wrangler/
 *.log
 .DS_Store

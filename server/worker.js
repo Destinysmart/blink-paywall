@@ -8,12 +8,14 @@
  * vars in wrangler.jsonc. Content comes from content.json plus
  * content.generated.json, which `npm run deploy` builds from the items/ folder
  * (a Worker cannot read files at runtime). An item file wins over a JSON entry
- * with the same id.
+ * with the same id. Items saved from the generator live in the ITEMS KV
+ * namespace (provisioned on deploy) and need the ADMIN_PASSWORD secret.
  */
 
 import base from './content.json';
 import generated from './content.generated.json';
 import { createPaywall } from './paywall.js';
+import { createKvStore, createMemoryStore } from './store.js';
 
 const content = { ...base, ...generated };
 
@@ -32,6 +34,8 @@ function instance(env) {
         env.TOKEN_TTL_DAYS,
         env.INVOICES_PER_MINUTE,
         env.WIDGET_URL,
+        env.ADMIN_PASSWORD,
+        Boolean(env.ITEMS),
     ].join('|');
     if (!paywall || key !== configKey) {
         paywall = createPaywall({
@@ -41,6 +45,9 @@ function instance(env) {
             tokenTtlDays: env.TOKEN_TTL_DAYS,
             invoicesPerMinute: env.INVOICES_PER_MINUTE,
             widgetUrl: env.WIDGET_URL,
+            adminPassword: env.ADMIN_PASSWORD,
+            // Without the KV binding, saves survive only as long as the isolate.
+            store: env.ITEMS ? createKvStore(env.ITEMS) : createMemoryStore(),
         });
         configKey = key;
     }

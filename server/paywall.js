@@ -15,10 +15,12 @@
  *   GET /content/:id                      the L402-protected item (goes in data-l402)
  *   GET /                                 demo page embedding the widget for every item
  *   GET /.well-known/blink-paywall.json   machine-readable item list (the generator reads it)
+ *   GET/PUT/DELETE /admin/items[/:id]     items saved from the generator — Bearer ADMIN_PASSWORD
  */
 
 import { decodeInvoice } from './bolt11.js';
-import { createMacaroon, hexToBytes, verifyToken } from './macaroon.js';
+import { createMacaroon, hexToBytes, timingSafeEqual, verifyToken } from './macaroon.js';
+import { markdownToHtml } from './markdown.js';
 
 export const VERSION = '0.2.0';
 export const API_URL = 'https://api.blink.sv/graphql';
@@ -45,7 +47,7 @@ const MUTATIONS = {
 
 const CORS = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, HEAD, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Access-Control-Expose-Headers': 'WWW-Authenticate',
     'Access-Control-Max-Age': '86400',
@@ -158,6 +160,8 @@ class BlinkApiError extends Error {
  * @param {string} [options.contentPath]   URL prefix of the items ('/content/')
  * @param {Function} [options.fetch]       injectable for tests
  * @param {string} [options.widgetUrl]     widget bundle the demo page loads (WIDGET_URL)
+ * @param {object} [options.store]         where items saved from the generator live (store.js)
+ * @param {string} [options.adminPassword] what the generator must present to save (ADMIN_PASSWORD)
  * @param {Function} [options.now]         injectable clock (ms), for tests
  */
 export function createPaywall(options = {}) {
@@ -177,6 +181,36 @@ export function createPaywall(options = {}) {
     const fetchFn = options.fetch || globalThis.fetch;
     const now = options.now || (() => Date.now());
     const widgetUrl = String(options.widgetUrl || WIDGET_URL);
+    const store = options.store || null;
+    const adminPassword = options.adminPassword ? String(options.adminPassword) : '';
+
+    // ── items: content.json / items/ (static) + saved from the generator ────
+
+    async function savedItems() {
+        if (!store) return {};
+        try {
+            return (await store.list()) || {};
+        } catch (error) {
+            console.error('Blink Paywall: saved items unreadable', error);
+            return {};
+        }
+    }
+
+    /** Saved items win over static ones with the same id. */
+    async function allItems() {
+        const saved = await savedItems();
+        let normalized = {};
+        try {
+            normalized = normalizeContent(saved);
+        } catch (error) {
+            console.error('Blink Paywall: a saved item is invalid', error);
+        }
+        return { ...items, ...normalized };
+    }
+
+    async function getItem(id) {
+        return (await allItems())[id] || null;
+    }
 
     // ── Blink public API (no key) ────────────────────────────────────────────
 
@@ -389,7 +423,7 @@ export function createPaywall(options = {}) {
     }
 
     async function handleContent(request, id, context) {
-        const item = items[id];
+        const item = await getItem(id);
         if (!item) return json(404, { error: 'unknown content id' });
 
         // 1. Valid token -> content. Stateless: HMAC + preimage + caveats.
@@ -424,12 +458,12 @@ export function createPaywall(options = {}) {
         return json(402, { error: 'payment required' }, { 'WWW-Authenticate': header });
     }
 
-    function describe(request) {
+    async function describe(request) {
         const origin = publicOrigin(request);
         return {
             blinkPaywall: VERSION,
             username,
-            items: Object.values(items).map((item) => ({
+            items: Object.values(await allItems()).map((item) => ({
                 id: item.id,
                 title: item.title,
                 price: item.price,
@@ -439,9 +473,9 @@ export function createPaywall(options = {}) {
         };
     }
 
-    function demoPage(request) {
+    async function demoPage(request) {
         const origin = publicOrigin(request);
-        const sections = Object.values(items)
+        const sections = Object.values(await allItems())
             .map((item) => {
                 const url = `${origin}${contentPath}${item.id}`;
                 const price = formatPrice(item.price, item.currency);
@@ -478,13 +512,125 @@ ${sections}
 `;
     }
 
+    // ── saved from the generator ─────────────────────────────────────────────
+
+    function authorize(request) {
+        if (!adminPassword) return 'disabled';
+        const match = /^Bearer\s+(.+)$/i.exec(request.headers.get('authorization') || '');
+        if (!match) return 'missing';
+        const encoder = new TextEncoder();
+        const given = encoder.encode(match[1].trim());
+        return timingSafeEqual(given, encoder.encode(adminPassword)) ? 'ok' : 'wrong';
+    }
+
+    /** What the generator sees for one item: enough to list it and to edit it again. */
+    function summary(id, entry, origin, editable) {
+        return {
+            id,
+            title: entry.title || id,
+            price: Number(entry.price),
+            currency: entry.currency || 'sats',
+            kind: entry.redirect ? 'link' : 'article',
+            url: `${origin}${contentPath}${id}`,
+            editable,
+            markdown: typeof entry.markdown === 'string' ? entry.markdown : null,
+            html: typeof entry.html === 'string' ? entry.html : null,
+            redirect: typeof entry.redirect === 'string' ? entry.redirect : null,
+        };
+    }
+
+    async function handleAdmin(request, id) {
+        const auth = authorize(request);
+        if (auth === 'disabled') {
+            return json(503, {
+                error: 'Saving from the generator is off: set the ADMIN_PASSWORD secret on this server.',
+            });
+        }
+        if (auth !== 'ok') {
+            return json(
+                401,
+                { error: auth === 'missing' ? 'password required' : 'wrong password' },
+                { 'WWW-Authenticate': 'Bearer' }
+            );
+        }
+        if (!store) {
+            return json(503, { error: 'This server has nowhere to keep saved items (no ITEMS storage).' });
+        }
+        const method = request.method.toUpperCase();
+        const origin = publicOrigin(request);
+
+        if (id === null) {
+            if (method !== 'GET') return json(405, { error: 'method not allowed' }, { Allow: 'GET' });
+            const saved = await savedItems();
+            const list = [];
+            for (const [key, item] of Object.entries(items)) {
+                if (saved[key]) continue; // the saved copy is the one in force
+                list.push(summary(key, { title: item.title, price: item.price, currency: item.currency, ...item.body }, origin, false));
+            }
+            for (const [key, entry] of Object.entries(saved)) list.push(summary(key, entry, origin, true));
+            return json(200, { username, items: list });
+        }
+
+        if (!ID_PATTERN.test(id)) {
+            return json(400, { error: 'the item name may only use letters, numbers, "_" and "-"' });
+        }
+        if (method === 'PUT') {
+            let body;
+            try {
+                body = await request.json();
+            } catch {
+                return json(400, { error: 'the body must be JSON' });
+            }
+            const entry = {
+                title: String(body.title || id),
+                price: Number(body.price),
+                currency: body.currency ? String(body.currency) : 'sats',
+            };
+            if (typeof body.redirect === 'string' && body.redirect.trim()) {
+                entry.redirect = body.redirect.trim();
+            } else if (typeof body.markdown === 'string' && body.markdown.trim()) {
+                entry.markdown = body.markdown;
+                entry.html = markdownToHtml(body.markdown);
+            } else if (typeof body.html === 'string' && body.html.trim()) {
+                entry.html = body.html;
+            }
+            try {
+                normalizeContent({ [id]: entry }); // same rules as content.json
+            } catch (error) {
+                return json(400, { error: error.message.replace(/^content: /, '') });
+            }
+            await store.put(id, entry);
+            return json(200, summary(id, entry, origin, true));
+        }
+        if (method === 'DELETE') {
+            const saved = await savedItems();
+            if (!saved[id]) return json(404, { error: 'no saved item with that name' });
+            await store.remove(id);
+            return respond(204, null);
+        }
+        return json(405, { error: 'method not allowed' }, { Allow: 'PUT, DELETE' });
+    }
+
     async function handle(request, context = {}) {
         const method = request.method.toUpperCase();
         if (method === 'OPTIONS') return respond(204, null);
+        const { pathname } = new URL(request.url);
+
+        const admin = /^\/admin\/items(?:\/([^/]+))?$/.exec(pathname);
+        if (admin) {
+            let id = null;
+            if (admin[1] !== undefined) {
+                try {
+                    id = decodeURIComponent(admin[1]);
+                } catch {
+                    return json(400, { error: 'bad item name' });
+                }
+            }
+            return handleAdmin(request, id);
+        }
         if (method !== 'GET' && method !== 'HEAD') {
             return json(405, { error: 'method not allowed' }, { Allow: 'GET, HEAD, OPTIONS' });
         }
-        const { pathname } = new URL(request.url);
         if (pathname.startsWith(contentPath)) {
             let id;
             try {
@@ -495,12 +641,16 @@ ${sections}
             if (!ID_PATTERN.test(id)) return json(404, { error: 'unknown content id' });
             return handleContent(request, id, context);
         }
-        if (pathname === '/.well-known/blink-paywall.json') return json(200, describe(request));
+        if (pathname === '/.well-known/blink-paywall.json') {
+            return json(200, await describe(request));
+        }
         if (pathname === '/' || pathname === '/index.html') {
-            return respond(200, demoPage(request), { 'Content-Type': 'text/html; charset=utf-8' });
+            return respond(200, await demoPage(request), {
+                'Content-Type': 'text/html; charset=utf-8',
+            });
         }
         return json(404, { error: 'not found' });
     }
 
-    return { handle, items, username, version: VERSION };
+    return { handle, items, allItems, username, version: VERSION };
 }

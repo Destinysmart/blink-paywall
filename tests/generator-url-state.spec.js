@@ -54,6 +54,7 @@ afterEach(() => {
     vi.restoreAllMocks();
     document.body.innerHTML = '';
     window.location.hash = '';
+    localStorage.clear();
 });
 
 describe('restoring from the hash', () => {
@@ -197,7 +198,7 @@ describe('hard mode', () => {
         expect($('server-step').hidden).toBe(false);
         expect($('username-step').hidden).toBe(true);
         expect($('unlock-step').hidden).toBe(true);
-        expect($('price-step').hidden).toBe(true);
+        expect($('price-step').hidden).toBe(false); // the price is set here and saved to the server
         expect($('code').textContent).toContain('data-l402="');
         expect($('code').textContent).not.toContain('data-username');
     });
@@ -246,6 +247,145 @@ describe('hard mode', () => {
         $('check-l402').click();
         await vi.waitFor(() => expect($('l402-status').textContent).toContain('not protected'));
         expect($('l402-status').className).toBe('error');
+    });
+});
+
+describe('hard mode: your server', () => {
+    const SERVER = 'https://paywall.example';
+    const ITEM = {
+        id: 'ebook',
+        title: 'The Full Article',
+        price: 210,
+        currency: 'sats',
+        kind: 'article',
+        url: `${SERVER}/content/ebook`,
+        editable: true,
+        markdown: '## Part two',
+        html: '<h2>Part two</h2>',
+        redirect: null,
+    };
+
+    /** A fake paywall server: well-known, list, save. Records every call. */
+    function fakeServer() {
+        const calls = [];
+        const items = [ITEM];
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async (url, init = {}) => {
+                const target = String(url);
+                calls.push({ url: target, init });
+                const auth = (init.headers || {}).Authorization;
+                if (target.endsWith('/.well-known/blink-paywall.json')) {
+                    return { ok: true, status: 200, json: async () => ({ blinkPaywall: '0.2.0', username: 'alice' }) };
+                }
+                if (auth !== 'Bearer secret-pw') {
+                    return { ok: false, status: 401, json: async () => ({ error: 'wrong password' }) };
+                }
+                if (target.endsWith('/admin/items')) {
+                    return { ok: true, status: 200, json: async () => ({ username: 'alice', items }) };
+                }
+                if (init.method === 'PUT') {
+                    const id = target.split('/').pop();
+                    const body = JSON.parse(init.body);
+                    const saved = { ...ITEM, ...body, id, url: `${SERVER}/content/${id}`, kind: body.redirect ? 'link' : 'article' };
+                    items.push(saved);
+                    return { ok: true, status: 200, json: async () => saved };
+                }
+                return { ok: false, status: 404, json: async () => ({ error: 'nope' }) };
+            })
+        );
+        return calls;
+    }
+
+    async function connect(password = 'secret-pw') {
+        $('server-url').value = SERVER + '/';
+        $('server-password').value = password;
+        $('connect-server').click();
+        // Wait for a verdict, not merely for the 'Connecting…' text to be gone:
+        // the status is empty before the click, so that would not wait at all.
+        await vi.waitFor(() => expect(['success', 'error']).toContain($('server-status').className));
+    }
+
+    it('shows its own steps: server, what to unlock, price, save', () => {
+        loadGenerator('');
+        expect($('server-step').hidden).toBe(false);
+        expect($('hard-unlock-step').hidden).toBe(false);
+        expect($('price-step').hidden).toBe(false);
+        expect($('save-step').hidden).toBe(false);
+        expect($('username-step').hidden).toBe(true);
+        expect($('unlock-step').hidden).toBe(true);
+        expect($('save-id').textContent).toBe('unlock-the-full-article');
+    });
+
+    it('connects, lists the items and loads one into the form', async () => {
+        vi.useRealTimers();
+        const calls = fakeServer();
+        loadGenerator('');
+        await connect();
+        expect($('server-status').className).toBe('success');
+        expect($('server-status').textContent).toContain('@alice');
+        expect($('server-items').hidden).toBe(false);
+        const chip = $('server-items-list').querySelector('.chip');
+        expect(chip.textContent).toBe('The Full Article · 210 sats');
+        expect(calls.some((call) => call.url === `${SERVER}/admin/items`)).toBe(true);
+
+        chip.click();
+        expect($('item-id').value).toBe('ebook');
+        expect($('title').value).toBe('The Full Article');
+        expect($('amount').value).toBe('210');
+        expect($('hard-markdown').value).toBe('## Part two');
+        expect($('l402-url').value).toBe(`${SERVER}/content/ebook`);
+        expect($('code').textContent).toContain(`data-l402="${SERVER}/content/ebook"`);
+        expect($('delete-item').hidden).toBe(false);
+    });
+
+    it('reports a wrong password and does not keep the server', async () => {
+        vi.useRealTimers();
+        fakeServer();
+        loadGenerator('');
+        await connect('wrong');
+        expect($('server-status').className).toBe('error');
+        expect($('server-status').textContent).toContain('Wrong password');
+        expect($('server-items').hidden).toBe(true);
+    });
+
+    it('saves a new item to the server and points the snippet at it', async () => {
+        vi.useRealTimers();
+        const calls = fakeServer();
+        loadGenerator('');
+        await connect();
+        $('title').value = 'My story';
+        $('amount').value = '500';
+        $('currency').value = 'NGN';
+        $('hard-markdown').value = 'The paid part';
+        $('title').dispatchEvent(new Event('input', { bubbles: true }));
+        $('save-item').click();
+        await vi.waitFor(() => expect($('save-status').textContent).toContain('Saved'));
+
+        const save = calls.find((call) => call.init.method === 'PUT');
+        expect(save.url).toBe(`${SERVER}/admin/items/my-story`);
+        expect(JSON.parse(save.init.body)).toEqual({
+            title: 'My story',
+            price: 500,
+            currency: 'NGN',
+            markdown: 'The paid part',
+        });
+        expect($('l402-url').value).toBe(`${SERVER}/content/my-story`);
+        expect($('code').textContent).toContain(`data-l402="${SERVER}/content/my-story"`);
+        expect($('server-items-list').querySelectorAll('.chip')).toHaveLength(2);
+    });
+
+    it('keeps the connection in this browser, never in the link', async () => {
+        vi.useRealTimers();
+        fakeServer();
+        loadGenerator('');
+        await connect();
+        expect(window.location.hash).not.toContain('secret-pw');
+        expect(window.location.hash).not.toContain('paywall.example');
+        expect(JSON.parse(localStorage.getItem('blink-paywall-generator:server'))).toEqual({
+            origin: SERVER,
+            password: 'secret-pw',
+        });
     });
 });
 
