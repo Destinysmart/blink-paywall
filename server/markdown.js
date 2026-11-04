@@ -14,10 +14,12 @@ function escapeHtml(text) {
 
 /** Inline markup for one block of text. */
 export function inline(text) {
+    // Code spans are lifted out first (a private-use character marks their
+    // slot) so no other rule touches their contents, then put back.
     const codes = [];
     let out = text.replace(/`([^`]+)`/g, (match, code) => {
         codes.push(`<code>${escapeHtml(code)}</code>`);
-        return `\u0000${codes.length - 1}\u0000`;
+        return `\uE000${codes.length - 1}\uE000`;
     });
     out = out
         .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img src="$2" alt="$1">')
@@ -26,7 +28,7 @@ export function inline(text) {
         .replace(/__([^_]+)__/g, '<strong>$1</strong>')
         .replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, '$1<em>$2</em>')
         .replace(/(^|[^_\w])_([^_\n]+)_(?!\w)/g, '$1<em>$2</em>');
-    return out.replace(/\u0000(\d+)\u0000/g, (match, index) => codes[Number(index)]);
+    return out.replace(/\uE000(\d+)\uE000/g, (match, index) => codes[Number(index)]);
 }
 
 const LIST_ITEM = /^\s*[-*+]\s+/;
