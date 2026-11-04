@@ -494,11 +494,16 @@ export function createPaywall(options = {}) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Blink Paywall — @${escapeHtml(username)}</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #1d1d1d; line-height: 1.5; }
-  h1 { font-size: 22px; } h2 { font-size: 18px; margin: 0 0 4px; }
-  .item { margin: 36px 0; } .muted { color: #6b7280; font-size: 14px; }
-  code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 12.5px; overflow-wrap: anywhere; }
+  :root { color-scheme: light dark; }
+  body { font-family: 'IBM Plex Sans', sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; color: #3a3c51; background: #fff; line-height: 1.5; }
+  h1 { font-size: 24px; line-height: 1.2; font-weight: 700; margin: 0 0 10px; } h2 { font-size: 20px; line-height: 1.3; font-weight: 500; margin: 0 0 5px; }
+  .item { margin: 30px 0 60px; } .muted { color: #9292a0; font-size: 14px; line-height: 1.4; }
+  code { background: #f2f2f4; padding: 2px 6px; border-radius: 4px; font-size: 14px; overflow-wrap: anywhere; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #faf9f9; background: #1d1d1d; } .muted { color: #cccccc; } code { background: #2b2b2b; }
+  }
 </style>
 </head>
 <body>

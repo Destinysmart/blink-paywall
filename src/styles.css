@@ -1,5 +1,7 @@
 /* Blink Paywall card — lives inside a shadow root, so no collisions with the
-   host page and no !important needed. Sunset Orange #FB5607 is Blink brand. */
+   host page and no !important needed. Colours are the Blink Brand System
+   tokens: primary #FC5805 (light) / #FFAD0D (dark), grey0 text, grey2 muted,
+   grey4 borders, and a dark ground of #1D1D1D rather than black. */
 
 :host {
     all: initial;
@@ -11,17 +13,22 @@
 }
 
 .card {
-    --accent: #fb5607;
+    --accent: #fc5805;
+    --accent-hover: #fd800b;
+    --on-accent: #ffffff;
     --bg: #ffffff;
-    --fg: #1d1d1d;
-    --muted: #6b7280;
-    --border: #e5e7eb;
+    --fg: #3a3c51;
+    --muted: #9292a0;
+    --border: #e2e2e4;
+    --success: #00a700;
+    /* IBM Plex Sans where the host page has it; a system stack otherwise. */
     font-family:
-        -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+        Arial, sans-serif;
     background: var(--bg);
     color: var(--fg);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 24px 20px 12px;
     max-width: 340px;
     margin: 0 auto;
@@ -30,20 +37,26 @@
 }
 
 .card.dark {
+    --accent: #ffad0d;
+    --accent-hover: #fe990d;
+    --on-accent: #1d1d1d;
     --bg: #1d1d1d;
-    --fg: #f5f5f5;
-    --muted: #9ca3af;
-    --border: #374151;
+    --fg: #faf9f9;
+    --muted: #cccccc;
+    --border: #393939;
 }
 
 /* data-theme="auto" (the default): follow the visitor's own light/dark
    preference. Pure CSS, so it also re-themes live when they flip it. */
 @media (prefers-color-scheme: dark) {
     .card.auto {
+        --accent: #ffad0d;
+        --accent-hover: #fe990d;
+        --on-accent: #1d1d1d;
         --bg: #1d1d1d;
-        --fg: #f5f5f5;
-        --muted: #9ca3af;
-        --border: #374151;
+        --fg: #faf9f9;
+        --muted: #cccccc;
+        --border: #393939;
     }
 }
 
@@ -60,13 +73,14 @@
 }
 
 .icon.success {
-    color: #16a34a;
+    color: var(--success);
 }
 
 .title {
-    font-size: 17px;
-    font-weight: 600;
-    margin: 0 0 6px;
+    font-size: 20px;
+    line-height: 1.3;
+    font-weight: 500;
+    margin: 0 0 5px;
 }
 
 .desc {
@@ -81,29 +95,29 @@
     width: 100%;
     padding: 12px 16px;
     border: none;
-    border-radius: 8px;
-    font-size: 15px;
+    border-radius: 999px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    margin: 6px 0;
+    margin: 5px 0;
     font-family: inherit;
 }
 
 .btn.primary {
     background: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
 }
 
 .btn.primary:hover {
-    filter: brightness(1.08);
+    background: var(--accent-hover);
 }
 
 .btn.ghost {
     background: transparent;
     color: var(--muted);
     font-weight: 500;
-    font-size: 13px;
-    padding: 6px;
+    font-size: 14px;
+    padding: 5px;
 }
 
 .btn.ghost:hover {
@@ -132,13 +146,13 @@
 
 .countdown {
     font-variant-numeric: tabular-nums;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--muted);
     margin: 8px 0 2px;
 }
 
 .status {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--muted);
     min-height: 18px;
     margin: 4px 0 0;
@@ -149,7 +163,7 @@
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px solid var(--border);
-    font-size: 12px;
+    font-size: 14px;
     color: var(--muted);
     text-decoration: none;
 }
