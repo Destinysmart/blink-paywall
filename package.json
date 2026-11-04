@@ -1,6 +1,6 @@
 {
   "name": "blink-paywall",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Blink Paywall widget — a Lightning paywall snippet that unlocks an owner-defined action when paid. Soft (backendless) and hard (L402) modes.",
   "private": true,
   "type": "module",
@@ -10,9 +10,10 @@
     "dev": "esbuild src/index.js --bundle --format=iife --global-name=BlinkPaywall --loader:.css=text --outfile=v1/blink-paywall.js --watch --servedir=.",
     "test": "vitest run",
     "test:watch": "vitest",
+    "server": "node server/node.mjs",
     "lint": "eslint .",
-    "format": "prettier --check \"src/**/*.js\" \"tests/**/*.js\" \"examples/**/*.mjs\" \"*.config.js\" \"generator.js\"",
-    "format:fix": "prettier --write \"src/**/*.js\" \"tests/**/*.js\" \"examples/**/*.mjs\" \"*.config.js\" \"generator.js\""
+    "format": "prettier --check \"src/**/*.js\" \"tests/**/*.js\" \"server/**/*.{js,mjs}\" \"*.config.js\" \"generator.js\"",
+    "format:fix": "prettier --write \"src/**/*.js\" \"tests/**/*.js\" \"server/**/*.{js,mjs}\" \"*.config.js\" \"generator.js\""
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

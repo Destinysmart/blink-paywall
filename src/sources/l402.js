@@ -5,7 +5,9 @@
  * enforces access; the widget is just an L402 browser client:
  *
  *   GET url                -> 402, WWW-Authenticate: L402 macaroon=".." invoice=".."
- *   pay, obtain preimage   -> Blink public status poll (Blink-issued invoices)
+ *   pay, obtain preimage   -> Blink public status poll (Blink-issued invoices),
+ *                             LUD-21 verify (the challenge carries verify="..":
+ *                             self-custodial owner, see ../l402.js),
  *                             or WebLN (any invoice; raced by the paywall)
  *   GET url + Authorization: L402 macaroon:preimage -> 200 + content
  *
@@ -15,6 +17,7 @@
 
 import * as blink from '../blink.js';
 import { buildAuthorization, decodeAmountSats, parseChallenge } from '../l402.js';
+import * as lnurl from '../lnurl.js';
 import { loadToken, saveToken, clearToken } from '../storage.js';
 
 async function parseBody(response) {
@@ -75,30 +78,37 @@ export function createL402Source(config) {
             if (!challenge) {
                 throw new Error('Server sent 402 without a valid L402 challenge');
             }
-            return {
+            const result = {
                 paymentRequest: challenge.invoice,
                 macaroon: challenge.macaroon,
                 sats: decodeAmountSats(challenge.invoice) || undefined,
                 // The real invoice expiry is unknown; poll for a bounded window.
                 expiresAt: Date.now() + 15 * 60_000,
             };
+            if (challenge.verify) result.verifyUrl = challenge.verify;
+            return result;
         },
 
         async checkOnce(challenge) {
+            if (challenge.verifyUrl) {
+                const result = await lnurl.checkVerify(challenge.verifyUrl);
+                return result.settled ? { preimage: result.preimage } : null;
+            }
             const result = await blink.checkStatus(challenge.paymentRequest);
             return result.status === 'PAID' ? { preimage: result.preimage } : null;
         },
 
         /**
-         * Poll Blink's public status API — works for Blink-issued invoices
-         * (our reference server). Non-Blink L402 invoices settle via the
-         * WebLN preimage race in the paywall instead.
+         * Poll Blink's public status API (Blink-issued invoices, i.e. the
+         * Blink Paywall server for a custodial owner) or the LUD-21 verify URL
+         * the challenge advertised (self-custodial owner). Other L402 servers'
+         * invoices settle via the WebLN preimage race in the paywall instead.
          */
         settle(challenge, { signal } = {}) {
-            return blink.watchPayment(challenge.paymentRequest, {
-                expiresAt: challenge.expiresAt,
-                signal,
-            });
+            const options = { expiresAt: challenge.expiresAt, signal };
+            return challenge.verifyUrl
+                ? lnurl.watchVerify(challenge.verifyUrl, options)
+                : blink.watchPayment(challenge.paymentRequest, options);
         },
 
         /** Exchange preimage for content; persist the bearer token. */

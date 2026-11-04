@@ -12,6 +12,17 @@ describe('parseChallenge', () => {
         expect(parseChallenge(header)).toEqual({ macaroon: 'bWFj', invoice: 'lnbc10n1abc' });
     });
 
+    it('carries the verify URL extension when present (self-custodial owner)', () => {
+        const header =
+            'L402 macaroon="m", invoice="lnbc1x", verify="https://lnurl.blink.sv/lnurlp/verify/1"';
+        expect(parseChallenge(header)).toEqual({
+            macaroon: 'm',
+            invoice: 'lnbc1x',
+            verify: 'https://lnurl.blink.sv/lnurlp/verify/1',
+        });
+        expect(parseChallenge('L402 macaroon="m", invoice="lnbc1x"')).not.toHaveProperty('verify');
+    });
+
     it('accepts LSAT and case variations, tolerates spacing', () => {
         const header = 'lsat  invoice = "lnbc1x" , MACAROON = "m1"';
         expect(parseChallenge(header)).toEqual({ macaroon: 'm1', invoice: 'lnbc1x' });

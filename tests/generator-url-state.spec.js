@@ -81,6 +81,13 @@ describe('restoring from the hash', () => {
         expect(snippet).toContain('data-title="My ebook"');
     });
 
+    it('treats a link without a type as the soft setup it was made as', () => {
+        // Links saved before hard mode became the default carry no `type`.
+        loadGenerator('#username=alice&amount=2500');
+        expect(document.querySelector('input[name="unlock-type"]:checked').value).toBe('content');
+        expect($('code').textContent).toContain('data-username="alice"');
+    });
+
     it('round-trips content through the URL encoding', () => {
         const content = '<p>Hello & welcome — "the full piece"</p>';
         loadGenerator('#content=' + encodeURIComponent(content));
@@ -90,7 +97,7 @@ describe('restoring from the hash', () => {
 
     it('ignores an unknown unlock type and keeps the default', () => {
         loadGenerator('#type=not-a-type');
-        expect(document.querySelector('input[name="unlock-type"]:checked').value).toBe('content');
+        expect(document.querySelector('input[name="unlock-type"]:checked').value).toBe('l402');
     });
 
     it('ignores unknown params without throwing', () => {
@@ -102,7 +109,7 @@ describe('restoring from the hash', () => {
         loadGenerator('');
         expect($('username').value).toBe('');
         expect($('amount').value).toBe('1000');
-        expect(document.querySelector('input[name="unlock-type"]:checked').value).toBe('content');
+        expect(document.querySelector('input[name="unlock-type"]:checked').value).toBe('l402');
     });
 });
 
@@ -129,8 +136,10 @@ describe('writing the hash', () => {
         expect(params.get('amount')).toBeNull();
         expect(params.get('currency')).toBeNull();
         expect(params.get('theme')).toBeNull();
-        expect(params.get('type')).toBeNull();
         expect(params.get('title')).toBeNull();
+        // Except the type: it is always recorded, so links from before hard
+        // mode was the default (which have none) can be told apart.
+        expect(params.get('type')).toBe('l402');
     });
 
     it('records a non-default unlock type', () => {
@@ -168,6 +177,52 @@ describe('writing the hash', () => {
 
         expect(replace).toHaveBeenCalled();
         expect(push).not.toHaveBeenCalled();
+    });
+});
+
+describe('hard mode', () => {
+    it('is the default, hides the username and price steps, and emits data-l402', () => {
+        loadGenerator('');
+        expect($('username-step').hidden).toBe(true);
+        expect($('price-step').hidden).toBe(true);
+        expect($('code').textContent).toContain('data-l402="');
+        expect($('code').textContent).not.toContain('data-username');
+
+        const radio = document.querySelector('input[name="unlock-type"][value="content"]');
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+        expect($('username-step').hidden).toBe(false);
+        expect($('price-step').hidden).toBe(false);
+    });
+
+    it('checks an endpoint and reports the price from its L402 challenge', async () => {
+        vi.useRealTimers();
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({
+                ok: false,
+                status: 402,
+                headers: { get: () => 'L402 macaroon="m", invoice="lnbc10u1rest"' },
+            }))
+        );
+        loadGenerator('');
+        $('l402-url').value = 'https://paywall.example/content/ebook';
+        $('check-l402').click();
+        await vi.waitFor(() => expect($('l402-status').textContent).toContain('1000 sats'));
+        expect($('l402-status').className).toBe('success');
+    });
+
+    it('says so when the URL is not protected', async () => {
+        vi.useRealTimers();
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({ ok: true, status: 200, headers: { get: () => null } }))
+        );
+        loadGenerator('');
+        $('l402-url').value = 'https://paywall.example/content/ebook';
+        $('check-l402').click();
+        await vi.waitFor(() => expect($('l402-status').textContent).toContain('not protected'));
+        expect($('l402-status').className).toBe('error');
     });
 });
 

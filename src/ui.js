@@ -12,7 +12,7 @@
 import qrcode from './qr.js';
 import css from './styles.css';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 
 const BRAND_URL =
     'https://get.blink.sv?referral=blink_paywall&widget_version=' + encodeURIComponent(VERSION);
