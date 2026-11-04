@@ -18,183 +18,249 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Blink design tokens (shared with donation-button.blink.sv) */
+        /* ── Blink brand tokens (Blink Brand System 2026, names as in the app) ──
+           Light values first; dark mode is not an inversion — the ground is
+           #1D1D1D and the accent is the lighter orange. */
         :root {
-            --primary: #fc5805;
-            --primary-pressed: #fd800b;
-            --text-primary: #3A3C51;
-            --text-muted: #9292A0;
-            --border: #E2E2E4;
-            --surface-static: #F9F9F9;
-            --surface-page: #FFFFFF;
-            --color-error: #DC2626;
-            --color-success: #00A700;
+            --primary: #FC5805;      /* the accent: buttons, links, active state */
+            --primary3: #FD800B;     /* one step off: hover */
+            --yellow: #FFBE0B;       /* _primary1, gradient stop */
+            --orange: #FB5607;       /* _primary2, gradient stop */
+            --green: #00A700;        /* confirmed, settled, paid */
+            --error: #DC2626;
+            --error-bg: #FEE2E2;
+            --grey0: #3A3C51;        /* primary text */
+            --grey1: #393939;        /* secondary text */
+            --grey2: #9292A0;        /* muted text, placeholders */
+            --grey3: #AEAEB8;        /* disabled, hints */
+            --grey4: #E2E2E4;        /* borders, dividers */
+            --grey5: #F2F2F4;        /* the ground */
+            --grey6: #E7E7E7;        /* raised surfaces */
+            --page: #FFFFFF;
+            --field: #FFFFFF;
+            --raised: #F2F2F4;    /* cards, chips, toolbars on a white page */
+            --on-primary: #FFFFFF;
             --radius-sm: 8px;
             --radius-lg: 16px;
+            --radius-full: 999px;
+            /* spacing scale: 3 · 5 · 8 · 10 · 14 · 20 · 30 (· 60 · 90) */
+            --s3: 3px; --s5: 5px; --s8: 8px; --s10: 10px; --s14: 14px; --s20: 20px; --s30: 30px; --s60: 60px;
+            color-scheme: light;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary: #FFAD0D;
+                --primary3: #FE990D;
+                --error-bg: #7F1D1D;
+                --grey0: #FAF9F9;
+                --grey1: #E9E8E8;
+                --grey2: #CCCCCC;
+                --grey3: #949494;
+                --grey4: #393939;
+                --grey5: #1D1D1D;
+                --grey6: #2B2B2B;
+                --page: #1D1D1D;
+                --field: #2B2B2B;
+                --raised: #2B2B2B;    /* grey6: raised surfaces are lighter than the ground */
+                --on-primary: #1D1D1D;
+                color-scheme: dark;
+            }
         }
 
         * { box-sizing: border-box; }
 
+        /* ── Type: IBM Plex Sans on the brand scale ── */
         body {
-            font-family: 'IBM Plex Sans', -apple-system, sans-serif;
-            color: var(--text-primary);
-            background: var(--surface-page);
-            margin: 0;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 16px;
             line-height: 1.5;
+            color: var(--grey0);
+            background: var(--page);
+            margin: 0;
         }
+        h1, h2, h3 { margin: 0; color: var(--grey0); }
+        h1 { font-size: 38px; line-height: 1.15; font-weight: 700; letter-spacing: -0.015em; }
+        h2 { font-size: 24px; line-height: 1.2; font-weight: 700; }
+        h3 { font-size: 20px; line-height: 1.3; font-weight: 500; }
+        .small { font-size: 14px; line-height: 1.4; }
+        a { color: var(--primary); }
+        code { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
 
-        /* Use the screen we are given. The form column stays at a readable
-           measure (see .layout) — the extra width goes to the preview and the
-           snippet, which are the things that actually benefit from it. */
-        .container { max-width: min(1560px, 95vw); margin: 0 auto; padding: 24px 16px 80px; }
+        /* Eyebrow: carries the benefit; the heading names the thing. */
+        .eyebrow {
+            display: block; font-size: 14px; line-height: 1.4; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey2);
+            margin: 0 0 var(--s8);
+        }
+        .eyebrow b { color: var(--primary); font-weight: 600; margin-right: var(--s8); }
 
-        header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-        header img { height: 34px; }
-        header h1 { font-size: 26px; margin: 0; }
-        .tagline { color: var(--text-muted); margin: 0 0 32px; }
+        .container { max-width: min(1560px, 95vw); margin: 0 auto; padding: var(--s30) 16px 90px; }
 
-        /* Form capped at a readable measure — stretching a Title input across
-           900px is worse, not better. The leftover width goes to the right rail,
-           so the preview and the snippet get the room they actually use. */
+        header { margin-bottom: var(--s30); }
+        header img { height: 38px; display: block; margin-bottom: var(--s20); }
+        .tagline { color: var(--grey1); margin: var(--s10) 0 0; max-width: 62ch; }
+
         .layout {
             display: grid;
             grid-template-columns: minmax(0, 720px) minmax(380px, 1fr);
-            gap: 40px;
+            gap: var(--s60);
             align-items: start;
         }
-        @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) { .layout { grid-template-columns: 1fr; gap: var(--s30); } }
 
-        .step { margin-bottom: 28px; }
-        .step h2 { font-size: 17px; margin: 0 0 10px; }
+        /* ── Steps ── */
+        .step { margin-bottom: var(--s30); }
+        .step h2 {
+            font-size: 20px; line-height: 1.3; font-weight: 500;
+            display: flex; align-items: center; gap: var(--s10); margin-bottom: var(--s14);
+        }
         .step h2 .n {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 24px; height: 24px; border-radius: 999px;
-            background: var(--primary); color: #fff; font-size: 13px; margin-right: 8px;
+            display: inline-flex; align-items: center; justify-content: center; flex: none;
+            width: 28px; height: 28px; border-radius: var(--radius-full);
+            background: var(--primary); color: var(--on-primary); font-size: 14px; font-weight: 600;
         }
+        main { counter-reset: step; }
+        .step.numbered { counter-increment: step; }
+        .step h2 .n::before { content: counter(step); }
 
-        label { display: block; font-size: 14px; font-weight: 500; margin: 12px 0 4px; }
-        .hint { font-size: 13px; color: var(--text-muted); margin: 4px 0 0; }
-        .error { font-size: 14px; color: var(--color-error); margin: 6px 0 0; }
-        .success { font-size: 14px; color: var(--color-success); margin: 6px 0 0; }
+        label { display: block; font-size: 14px; line-height: 1.4; font-weight: 500; margin: var(--s14) 0 var(--s5); }
+        .hint { font-size: 14px; line-height: 1.4; color: var(--grey2); margin: var(--s5) 0 0; }
+        .error { font-size: 14px; line-height: 1.4; color: var(--error); margin: var(--s8) 0 0; }
+        .success { font-size: 14px; line-height: 1.4; color: var(--green); margin: var(--s8) 0 0; }
 
-        input[type="text"], input[type="number"], input[type="url"], textarea, select {
-            width: 100%; padding: 10px 12px; font: inherit; font-size: 15px;
-            border: 1px solid var(--border); border-radius: var(--radius-sm);
-            color: var(--text-primary); background: #fff;
+        /* ── Controls ── */
+        input[type="text"], input[type="number"], input[type="url"], input[type="password"], textarea, select {
+            width: 100%; padding: var(--s10) var(--s14); font: inherit; font-size: 16px;
+            border: 1px solid var(--grey4); border-radius: var(--radius-sm);
+            color: var(--grey0); background: var(--field);
         }
+        input::placeholder, textarea::placeholder { color: var(--grey2); }
         input:focus, textarea:focus, select:focus {
             outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary);
         }
         textarea { min-height: 96px; resize: vertical; }
 
-        .row { display: flex; gap: 10px; }
+        .row { display: flex; gap: var(--s10); }
         .row > * { flex: 1; }
         .row .narrow { flex: 0 0 130px; }
 
-        .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-        .type-card {
-            border: 1px solid var(--border); border-radius: var(--radius-sm);
-            padding: 12px; cursor: pointer; background: var(--surface-static);
-            font-size: 14px; text-align: left;
-        }
-        .type-card input { position: absolute; opacity: 0; }
-        .type-card.selected { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -2px; background: #fff; }
-        .type-card b { display: block; margin-bottom: 2px; }
-        .type-card span { color: var(--text-muted); font-size: 12.5px; }
-
+        /* Buttons are always full. */
         .btn {
-            display: inline-block; padding: 10px 20px; font: inherit; font-weight: 600;
-            border: none; border-radius: 999px; cursor: pointer;
-            background: var(--primary); color: #fff;
+            display: inline-block; padding: var(--s10) var(--s20); font: inherit; font-weight: 600;
+            border: none; border-radius: var(--radius-full); cursor: pointer;
+            background: var(--primary); color: var(--on-primary);
         }
-        .btn:hover { background: var(--primary-pressed); }
-        .btn.secondary { background: var(--surface-static); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn:hover { background: var(--primary3); }
+        .btn:focus-visible { outline: 2px solid var(--grey0); outline-offset: 2px; }
+        .btn.secondary { background: var(--raised); color: var(--grey0); border: 1px solid var(--grey4); }
+        .btn.secondary:hover { border-color: var(--grey3); }
 
-        details { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; }
-        details summary { cursor: pointer; font-weight: 500; font-size: 14px; }
-
-        .preview-pane { position: sticky; top: 16px; }
-        .preview-box {
-            border: 1px dashed var(--border); border-radius: var(--radius-lg);
-            padding: 20px 14px; background: var(--surface-static); margin-bottom: 8px;
+        /* Cards at radius 16. */
+        .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s10); }
+        .cards-mode { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+        .type-card {
+            border: 1px solid var(--grey4); border-radius: var(--radius-lg);
+            padding: var(--s14); cursor: pointer; background: var(--raised);
+            font-size: 14px; line-height: 1.4; text-align: left; position: relative;
         }
-        .preview-actions { text-align: right; margin-bottom: 20px; }
-        .preview-actions button { font-size: 13px; background: none; border: none; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
-
-        pre {
-            background: #24252d; color: #e8e8ec; border-radius: var(--radius-sm);
-            padding: 14px; font-size: 12.5px; overflow-x: auto; white-space: pre-wrap;
-            /* anywhere, not break-all: break only when a line truly cannot fit,
-               instead of chopping the script URL mid-token on every line. */
-            overflow-wrap: anywhere; margin: 0 0 10px;
-        }
-        .copy-wrap { position: relative; }
-
-        footer { margin-top: 60px; font-size: 13px; color: var(--text-muted); }
-        footer a { color: var(--primary); }
-        #hard-mode-note { display: none; }
-
-        /* Steps number themselves, so hiding one (hard mode has no username
-           or price step) keeps the rest in sequence. */
-        main { counter-reset: step; }
-        .step.numbered { counter-increment: step; }
-        .step h2 .n::before { content: counter(step); }
+        .type-card:hover { border-color: var(--grey3); }
+        .type-card input { position: absolute; opacity: 0; }
+        .type-card.selected { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -2px; background: var(--page); }
+        .type-card b { display: block; margin-bottom: var(--s3); font-weight: 600; color: var(--grey0); }
+        .type-card span { color: var(--grey2); }
 
         .badge {
             display: inline-block; font-size: 11px; font-weight: 600; line-height: 1;
-            padding: 3px 7px; border-radius: 999px; background: var(--primary); color: #fff;
-            vertical-align: middle; margin-left: 6px;
+            letter-spacing: 0.04em; text-transform: uppercase;
+            padding: 4px 8px; border-radius: var(--radius-full); background: var(--primary); color: var(--on-primary);
+            vertical-align: middle; margin-left: var(--s8);
         }
-        .cards-mode { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-        .deploy-steps { padding-left: 20px; margin: 4px 0 8px; font-size: 14px; }
-        .deploy-steps li { margin-bottom: 10px; }
-        .deploy-steps code, .hint code { font-size: 13px; background: var(--surface-static); padding: 1px 5px; border-radius: 4px; }
-        /* The rich-text editor (editor.js) that replaces the content textareas. */
-        .editor { border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; margin-top: 4px; }
+
+        details { border: 1px solid var(--grey4); border-radius: var(--radius-sm); padding: var(--s10) var(--s14); }
+        details summary { cursor: pointer; font-weight: 500; font-size: 14px; }
+
+        /* Numbered steps: the verb is bold. */
+        .deploy-steps { padding-left: var(--s20); margin: var(--s5) 0 var(--s8); font-size: 16px; }
+        .deploy-steps li { margin-bottom: var(--s10); }
+        .deploy-steps code, .hint code { font-size: 14px; background: var(--raised); padding: 1px 5px; border-radius: 4px; }
+        .deploy-steps .hint { display: block; }
+        .deploy-btn { display: block; width: fit-content; margin: var(--s8) 0 var(--s8); }
+        .deploy-btn img { height: 34px; display: block; }
+
+        .chips { display: flex; flex-wrap: wrap; gap: var(--s8); margin-top: var(--s5); }
+        .chip {
+            border: 1px solid var(--grey4); border-radius: var(--radius-full); padding: var(--s5) var(--s14);
+            font: inherit; font-size: 14px; background: var(--raised); cursor: pointer; color: var(--grey0);
+        }
+        .chip:hover { border-color: var(--grey3); }
+        .chip.selected { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -2px; background: var(--page); }
+        .chip.readonly { color: var(--grey2); }
+        #save-step .row > * { flex: 0 0 auto; }
+
+        /* ── The rich-text editor (editor.js) ── */
+        .editor { border: 1px solid var(--grey4); border-radius: var(--radius-sm); background: var(--field); margin-top: var(--s5); }
         .editor:focus-within { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
         .editor-toolbar {
-            display: flex; flex-wrap: wrap; gap: 4px; padding: 6px;
-            border-bottom: 1px solid var(--border); background: var(--surface-static);
+            display: flex; flex-wrap: wrap; gap: var(--s5); padding: var(--s8);
+            border-bottom: 1px solid var(--grey4); background: var(--raised);
             border-radius: var(--radius-sm) var(--radius-sm) 0 0;
         }
         .editor-tool {
-            font: inherit; font-size: 13px; padding: 4px 10px; border: 1px solid var(--border);
-            border-radius: 6px; background: #fff; cursor: pointer; color: var(--text-primary);
+            font: inherit; font-size: 14px; padding: var(--s5) var(--s10); border: 1px solid var(--grey4);
+            border-radius: var(--radius-full); background: var(--field); cursor: pointer; color: var(--grey0);
         }
-        .editor-tool:hover { border-color: var(--primary); }
+        .editor-tool:hover { border-color: var(--primary); color: var(--primary); }
         .editor-tool.bold { font-weight: 700; }
         .editor-tool.italic { font-style: italic; }
-        .editor-area { min-height: 180px; padding: 12px 14px; font-size: 15px; line-height: 1.5; outline: none; }
-        .editor-area:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
-        .editor-area h2 { font-size: 20px; margin: 12px 0 6px; }
-        .editor-area h3 { font-size: 17px; margin: 10px 0 4px; }
-        .editor-area p { margin: 0 0 10px; }
-        .editor-area ul, .editor-area ol { margin: 0 0 10px; padding-left: 22px; }
-        .editor-area blockquote { border-left: 3px solid var(--border); margin: 8px 0; padding-left: 12px; color: var(--text-muted); }
+        .editor-area { min-height: 180px; padding: var(--s14); font-size: 16px; line-height: 1.5; outline: none; color: var(--grey0); }
+        .editor-area:empty::before { content: attr(data-placeholder); color: var(--grey2); }
+        .editor-area h2 { font-size: 24px; line-height: 1.2; font-weight: 700; margin: var(--s14) 0 var(--s8); }
+        .editor-area h3 { font-size: 20px; line-height: 1.3; font-weight: 500; margin: var(--s10) 0 var(--s5); }
+        .editor-area p { margin: 0 0 var(--s10); }
+        .editor-area ul, .editor-area ol { margin: 0 0 var(--s10); padding-left: 22px; }
+        .editor-area blockquote { border-left: 3px solid var(--primary); margin: var(--s8) 0; padding-left: var(--s14); color: var(--grey1); }
         .editor-area a { color: var(--primary); }
         .editor-source { display: none; }
 
-        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-        .chip {
-            border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px;
-            font: inherit; font-size: 13px; background: var(--surface-static); cursor: pointer;
-            color: var(--text-primary);
+        /* ── Right rail ── */
+        .preview-pane { position: sticky; top: var(--s14); }
+        .preview-pane h2 { font-size: 20px; line-height: 1.3; font-weight: 500; margin: 0 0 var(--s10); }
+        .preview-box {
+            border: 1px solid var(--grey4); border-radius: var(--radius-lg);
+            padding: var(--s20) var(--s14); background: var(--raised); margin-bottom: var(--s8);
         }
-        .chip.selected { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -2px; background: #fff; }
-        .chip.readonly { color: var(--text-muted); }
-        #save-step .row > * { flex: 0 0 auto; }
-        .deploy-btn { display: block; width: fit-content; margin: 8px 0 6px; }
-        .deploy-btn img { height: 34px; display: block; }
-        .deploy-steps .hint { display: block; }
+        .preview-actions { text-align: right; margin-bottom: var(--s30); }
+        .preview-actions button { font: inherit; font-size: 14px; background: none; border: none; color: var(--grey2); cursor: pointer; text-decoration: underline; }
+
+        pre {
+            background: #1D1D1D; color: #FAF9F9; border: 1px solid var(--grey4); border-radius: var(--radius-sm);
+            padding: var(--s14); font-size: 14px; line-height: 1.4; overflow-x: auto; white-space: pre-wrap;
+            overflow-wrap: anywhere; margin: 0 0 var(--s10);
+        }
+        .copy-wrap { position: relative; }
+
+        /* Callout: the brand's note block, grey ground with an orange rule. */
+        .callout {
+            background: var(--raised); border-left: 4px solid var(--primary); border-radius: var(--radius-sm);
+            padding: var(--s14) var(--s20); font-size: 14px; line-height: 1.4; color: var(--grey1); margin: var(--s20) 0 0;
+        }
+        .callout b { color: var(--grey0); }
+
+        footer { margin-top: var(--s60); font-size: 14px; line-height: 1.4; color: var(--grey2); }
+        #hard-mode-note { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <img src="img/blink-light.svg" alt="Blink">
-            <h1>Paywall Generator</h1>
+            <picture>
+                <source srcset="img/blink-dark.svg" media="(prefers-color-scheme: dark)">
+                <img src="img/blink-light.svg" alt="Blink">
+            </picture>
+            <span class="eyebrow"><b>Paywall</b>Get paid for what you write</span>
+            <h1>Put a Lightning paywall on anything</h1>
+            <p class="tagline">Readers pay in sats or their own currency and the money lands in your Blink wallet. Keep the paid part on your own server, or run it all in the page — the simpler option, but one a determined reader can get around.</p>
         </header>
-        <p class="tagline">Unlock anything with a Lightning payment — content, downloads, links, embeds. One snippet; the money goes straight to your Blink wallet. Keep the content on your own server (recommended), or run it all in the browser.</p>
 
         <div class="layout">
             <main>
@@ -372,11 +438,13 @@
             </main>
 
             <aside class="preview-pane">
-                <h2 style="font-size:17px; margin:0 0 10px">Live preview</h2>
+                <span class="eyebrow">What the reader sees</span>
+                <h2>Live preview</h2>
                 <div class="preview-box"><div id="preview"></div></div>
                 <div class="preview-actions"><button type="button" id="reset-preview">Reset preview unlocks</button></div>
 
-                <h2 style="font-size:17px; margin:0 0 10px">Your snippet</h2>
+                <span class="eyebrow">Paste it into your page</span>
+                <h2>Your snippet</h2>
                 <div class="copy-wrap"><pre><code id="code"></code></pre></div>
                 <button class="btn" id="copy" type="button" style="width:100%">Copy code</button>
                 <button class="btn secondary" id="copy-link" type="button" style="width:100%; margin-top:8px">Copy link to this setup</button>
@@ -387,7 +455,7 @@
         </div>
 
         <footer>
-            <p>A hard paywall keeps the content on your server and releases it only after the Lightning payment is verified — use it for anything worth protecting. Soft paywalls run entirely in the visitor's browser: great for tips, articles and honest audiences, but a determined visitor can bypass them with browser dev tools. <a href="https://github.com/Destinysmart/blink-paywall#security-model" target="_blank" rel="noopener">Security model</a></p>
+            <p class="callout"><b>Where the content lives decides how safe it is.</b> On your server it is released only after the Lightning payment is verified. In the page it is hidden until paid, but a determined reader can find it with browser tools. <a href="https://github.com/Destinysmart/blink-paywall#security-model" target="_blank" rel="noopener">Learn more</a></p>
             <p>Open source (AGPL-3.0) — <a href="https://github.com/Destinysmart/blink-paywall" target="_blank" rel="noopener">GitHub</a></p>
         </footer>
     </div>
