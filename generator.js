@@ -189,11 +189,23 @@
         );
     }
 
+    // Step 1 is the one real choice — where the locked content lives — and
+    // the soft "what does a payment unlock" cards only apply to the soft path.
+    // Together they make the single `type` the rest of the page runs on.
+    function mode() {
+        return document.querySelector('input[name="mode"]:checked').value;
+    }
+
     function unlockType() {
+        if (mode() === 'hard') return 'l402';
         return document.querySelector('input[name="unlock-type"]:checked').value;
     }
 
     function selectType(value) {
+        var hard = value === 'l402';
+        document.querySelector('input[name="mode"][value="' + (hard ? 'hard' : 'soft') + '"]').checked =
+            true;
+        if (hard) return;
         var radio = document.querySelector('input[name="unlock-type"][value="' + value + '"]');
         if (radio) radio.checked = true;
     }
@@ -427,11 +439,14 @@
         clearTimeout(hashTimer);
         hashTimer = setTimeout(syncHash, 300);
         var hard = config.type === 'l402';
-        // Hard mode: the username and the price live on the server.
+        // Each path shows only its own steps: hard mode keeps the username,
+        // the unlock and the price on the server.
+        $('server-step').hidden = !hard;
         $('username-step').hidden = hard;
+        $('unlock-step').hidden = hard;
         $('price-step').hidden = hard;
         $('hard-mode-note').style.display = hard ? 'block' : 'none';
-        ['content', 'secret', 'embed', 'redirect', 'l402'].forEach(function (name) {
+        ['content', 'secret', 'embed', 'redirect'].forEach(function (name) {
             $('field-' + name).hidden = name !== config.type;
         });
         document.querySelectorAll('.type-card').forEach(function (card) {
