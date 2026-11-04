@@ -301,7 +301,9 @@ describe('hard mode: your server', () => {
         $('server-url').value = SERVER + '/';
         $('server-password').value = password;
         $('connect-server').click();
-        await vi.waitFor(() => expect($('server-status').textContent).not.toContain('Connecting'));
+        // Wait for a verdict, not merely for the 'Connecting…' text to be gone:
+        // the status is empty before the click, so that would not wait at all.
+        await vi.waitFor(() => expect(['success', 'error']).toContain($('server-status').className));
     }
 
     it('shows its own steps: server, what to unlock, price, save', () => {
