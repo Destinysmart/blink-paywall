@@ -25,10 +25,42 @@
         return Boolean(document.getElementById('code'));
     }
 
-    var state = { usernameOk: false, previewInstance: null, server: null };
+    var state = { usernameOk: false, started: false, previewInstance: null, server: null };
 
     // The connected server (address + password) lives in this browser only.
     var SERVER_KEY = 'blink-paywall-generator:server';
+    var THEME_KEY = 'blink-paywall-generator:theme';
+
+    // ── Theme: follow the device, remember a choice ──
+
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        var toggle = $('theme-toggle');
+        if (toggle) toggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
+    }
+
+    function initialTheme() {
+        try {
+            var saved = localStorage.getItem(THEME_KEY);
+            if (saved === 'dark' || saved === 'light') return saved;
+        } catch {
+            // no storage: fall through to the device preference
+        }
+        var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        return dark ? 'dark' : 'light';
+    }
+
+    function toggleTheme() {
+        var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        try {
+            localStorage.setItem(THEME_KEY, next);
+        } catch {
+            // not remembered, still applied
+        }
+        applyTheme(next);
+    }
+
+    applyTheme(initialTheme());
 
     // ── Username validation (custodial via usernameAvailable, Spark via LNURL probe) ──
 
@@ -99,6 +131,7 @@
                 'No Blink account with that username. <a href="https://get.blink.sv?referral=blink_paywall" target="_blank" rel="noopener">Download Blink</a> to create one.';
         } else {
             state.usernameOk = true;
+            state.started = true;
             status.className = 'success';
             status.textContent = '\u2713 Username found';
         }
@@ -705,12 +738,13 @@
         clearTimeout(hashTimer);
         hashTimer = setTimeout(syncHash, 300);
         var hard = config.type === 'l402';
-        // Each path shows only its own steps. Hard mode writes the item here
-        // and saves it to the owner's server; the username lives there.
+        // The rest of the page opens once there is a username (or a restored
+        // setup); hard mode adds the server, its unlock fields and Save.
+        $('results').hidden = !state.started;
+        $('container').classList.toggle('wide', state.started);
         $('server-step').hidden = !hard;
         $('hard-unlock-step').hidden = !hard;
         $('save-step').hidden = !hard;
-        $('username-step').hidden = hard;
         $('unlock-step').hidden = hard;
         $('hard-mode-note').style.display = hard ? 'block' : 'none';
         ['content', 'secret', 'embed', 'redirect'].forEach(function (name) {
@@ -740,6 +774,12 @@
     }
 
     // ── Wiring ──
+
+    $('theme-toggle').addEventListener('click', toggleTheme);
+    $('code-toggle').addEventListener('click', function () {
+        var collapsed = $('code-wrap').classList.toggle('is-collapsed');
+        $('code-toggle').textContent = collapsed ? 'Show full code' : 'Hide full code';
+    });
 
     $('check-username').addEventListener('click', checkUsername);
     $('username').addEventListener('keydown', function (event) {
@@ -799,6 +839,7 @@
     // Restore a saved setup before the first render. A username in the link is
     // validated as if it had been typed, so the preview mounts ready to pay.
     var restored = applyHash(window.location.hash);
+    if (restored) state.started = true;
     refreshEditors();
     var remembered = recallServer();
     if (remembered && remembered.origin && remembered.password) {

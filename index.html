@@ -3,460 +3,368 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blink Paywall Generator</title>
+    <title>Blink Paywall</title>
 
     <meta name="description" content="Create a Bitcoin Lightning paywall for your website. Paste one snippet and unlock content, downloads, links or any action when a visitor pays your Blink account — verified on your own server, or browser-only.">
     <meta name="author" content="Blink">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://destinysmart.github.io/blink-paywall/">
-    <meta property="og:title" content="Blink Paywall Generator — unlock anything with Lightning">
-    <meta property="og:description" content="Create a Bitcoin Lightning paywall for your website. Server-verified, or no backend at all.">
+    <meta property="og:title" content="Blink Paywall — charge sats for anything">
+    <meta property="og:description" content="Charge sats for an article, a download or a link. Paid straight to your Blink wallet.">
     <meta property="twitter:site" content="@blinkbtc">
-    <meta name="theme-color" content="#fc5805">
+    <meta name="theme-color" content="#111111">
     <link rel="canonical" href="https://destinysmart.github.io/blink-paywall/">
     <link rel="icon" type="image/svg+xml" href="img/blink-light.svg">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* ── Blink brand tokens (Blink Brand System 2026, names as in the app) ──
-           Light values first; dark mode is not an inversion — the ground is
-           #1D1D1D and the accent is the lighter orange. */
+        /* ── Blink tokens, as in donation-button.blink.sv and the app theme ── */
         :root {
-            --primary: #FC5805;      /* the accent: buttons, links, active state */
-            --primary3: #FD800B;     /* one step off: hover */
-            --yellow: #FFBE0B;       /* _primary1, gradient stop */
-            --orange: #FB5607;       /* _primary2, gradient stop */
-            --green: #00A700;        /* confirmed, settled, paid */
-            --error: #DC2626;
-            --error-bg: #FEE2E2;
-            --grey0: #3A3C51;        /* primary text */
-            --grey1: #393939;        /* secondary text */
-            --grey2: #9292A0;        /* muted text, placeholders */
-            --grey3: #AEAEB8;        /* disabled, hints */
-            --grey4: #E2E2E4;        /* borders, dividers */
-            --grey5: #F2F2F4;        /* the ground */
-            --grey6: #E7E7E7;        /* raised surfaces */
-            --page: #FFFFFF;
-            --field: #FFFFFF;
-            --raised: #F2F2F4;    /* cards, chips, toolbars on a white page */
-            --on-primary: #FFFFFF;
-            --radius-sm: 8px;
-            --radius-lg: 16px;
-            --radius-full: 999px;
-            /* spacing scale: 3 · 5 · 8 · 10 · 14 · 20 · 30 (· 60 · 90) */
-            --s3: 3px; --s5: 5px; --s8: 8px; --s10: 10px; --s14: 14px; --s20: 20px; --s30: 30px; --s60: 60px;
+            --radius-sm: 8px; --radius-lg: 16px; --radius-full: 999px;
+            --success: #00A700; --error: #DC2626;
+            --primary: #fc5805; --primary-pressed: #fd800b; --on-primary: #ffffff;
+            --text: #3A3C51; --text-2: #393939; --muted: #9292A0; --disabled: #AEAEB8;
+            --border: #E2E2E4;
+            --surface-interactive: #F2F2F4; --surface-pressed: #E7E7E7;
+            --surface-static: #F9F9F9; --surface-page: #FFFFFF; --field: #FFFFFF;
             color-scheme: light;
         }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --primary: #FFAD0D;
-                --primary3: #FE990D;
-                --error-bg: #7F1D1D;
-                --grey0: #FAF9F9;
-                --grey1: #E9E8E8;
-                --grey2: #CCCCCC;
-                --grey3: #949494;
-                --grey4: #393939;
-                --grey5: #1D1D1D;
-                --grey6: #2B2B2B;
-                --page: #1D1D1D;
-                --field: #2B2B2B;
-                --raised: #2B2B2B;    /* grey6: raised surfaces are lighter than the ground */
-                --on-primary: #1D1D1D;
-                color-scheme: dark;
-            }
+        :root[data-theme="dark"] {
+            --primary: #ffad0d; --primary-pressed: #fe990d; --on-primary: #1d1d1d;
+            --text: #FAF9F9; --text-2: #E9E8E8; --muted: #CCCCCC; --disabled: #949494;
+            --border: #393939;
+            --surface-interactive: #1d1d1d; --surface-pressed: #2B2B2B;
+            --surface-static: #0F0F0F; --surface-page: #111111; --field: #1d1d1d;
+            color-scheme: dark;
         }
 
         * { box-sizing: border-box; }
-
-        /* ── Type: IBM Plex Sans on the brand scale ── */
         body {
-            font-family: 'IBM Plex Sans', sans-serif;
-            font-size: 16px;
-            line-height: 1.5;
-            color: var(--grey0);
-            background: var(--page);
-            margin: 0;
+            font-family: 'IBM Plex Sans', sans-serif; font-size: 16px; line-height: 1.5;
+            color: var(--text); background: var(--surface-page); margin: 0;
         }
-        h1, h2, h3 { margin: 0; color: var(--grey0); }
-        h1 { font-size: 38px; line-height: 1.15; font-weight: 700; letter-spacing: -0.015em; }
-        h2 { font-size: 24px; line-height: 1.2; font-weight: 700; }
-        h3 { font-size: 20px; line-height: 1.3; font-weight: 500; }
-        .small { font-size: 14px; line-height: 1.4; }
         a { color: var(--primary); }
-        code { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+        h1, h2, h3, p { margin: 0; }
+        h1 { font-size: 24px; line-height: 32px; font-weight: 700; }
+        h2 { font-size: 20px; line-height: 24px; font-weight: 600; }
+        [hidden] { display: none !important; }
 
-        /* Eyebrow: carries the benefit; the heading names the thing. */
-        .eyebrow {
-            display: block; font-size: 14px; line-height: 1.4; font-weight: 600;
-            letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey2);
-            margin: 0 0 var(--s8);
+        .theme-switch { position: fixed; top: 14px; right: 14px; z-index: 2; }
+        .theme-switch button {
+            width: 36px; height: 36px; border-radius: var(--radius-full); border: 1px solid var(--border);
+            background: var(--surface-static); color: var(--muted); cursor: pointer; font-size: 16px;
         }
-        .eyebrow b { color: var(--primary); font-weight: 600; margin-right: var(--s8); }
 
-        .container { max-width: min(1560px, 95vw); margin: 0 auto; padding: var(--s30) 16px 90px; }
+        .container { max-width: 640px; margin: 0 auto; padding: 30px 20px 90px; }
+        @media (min-width: 940px) { .container.wide { max-width: 1040px; } }
 
-        header { margin-bottom: var(--s30); }
-        header img { height: 38px; display: block; margin-bottom: var(--s20); }
-        .tagline { color: var(--grey1); margin: var(--s10) 0 0; max-width: 62ch; }
-
-        .layout {
-            display: grid;
-            grid-template-columns: minmax(0, 720px) minmax(380px, 1fr);
-            gap: var(--s60);
-            align-items: start;
+        /* ── Hero: the mark, a name, one line ── */
+        .hero { text-align: center; margin-bottom: 20px; }
+        .hero .mark {
+            width: 48px; height: 48px; margin: 0 auto 10px; border-radius: var(--radius-full);
+            background: #0f0f0f; border: 1px solid var(--border); display: grid; place-items: center;
         }
-        @media (max-width: 900px) { .layout { grid-template-columns: 1fr; gap: var(--s30); } }
+        .hero .mark img { width: 26px; height: 26px; }
+        .hero p { color: var(--muted); font-size: 16px; max-width: 34ch; margin: 5px auto 0; }
 
-        /* ── Steps ── */
-        .step { margin-bottom: var(--s30); }
-        .step h2 {
-            font-size: 20px; line-height: 1.3; font-weight: 500;
-            display: flex; align-items: center; gap: var(--s10); margin-bottom: var(--s14);
+        /* ── Cards ── */
+        .card {
+            background: var(--surface-static); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); padding: 20px; margin-bottom: 14px;
         }
-        .step h2 .n {
-            display: inline-flex; align-items: center; justify-content: center; flex: none;
-            width: 28px; height: 28px; border-radius: var(--radius-full);
-            background: var(--primary); color: var(--on-primary); font-size: 14px; font-weight: 600;
+        .card h2 { margin-bottom: 10px; }
+        .card h2 small { font-weight: 400; color: var(--muted); font-size: 14px; margin-left: 8px; }
+
+        .columns { display: grid; gap: 14px; }
+        @media (min-width: 940px) {
+            .columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+            .columns .sticky { position: sticky; top: 14px; }
         }
-        main { counter-reset: step; }
-        .step.numbered { counter-increment: step; }
-        .step h2 .n::before { content: counter(step); }
 
-        label { display: block; font-size: 14px; line-height: 1.4; font-weight: 500; margin: var(--s14) 0 var(--s5); }
-        .hint { font-size: 14px; line-height: 1.4; color: var(--grey2); margin: var(--s5) 0 0; }
-        .error { font-size: 14px; line-height: 1.4; color: var(--error); margin: var(--s8) 0 0; }
-        .success { font-size: 14px; line-height: 1.4; color: var(--green); margin: var(--s8) 0 0; }
+        label { display: block; font-size: 14px; line-height: 18px; font-weight: 600; margin: 14px 0 5px; }
+        .card > label:first-of-type, .card h2 + label { margin-top: 0; }
+        .hint { font-size: 14px; line-height: 18px; color: var(--muted); margin: 5px 0 0; }
+        .error { font-size: 14px; line-height: 18px; color: var(--error); margin: 8px 0 0; }
+        .success { font-size: 14px; line-height: 18px; color: var(--success); margin: 8px 0 0; }
 
-        /* ── Controls ── */
         input[type="text"], input[type="number"], input[type="url"], input[type="password"], textarea, select {
-            width: 100%; padding: var(--s10) var(--s14); font: inherit; font-size: 16px;
-            border: 1px solid var(--grey4); border-radius: var(--radius-sm);
-            color: var(--grey0); background: var(--field);
+            width: 100%; padding: 10px 14px; font: inherit; font-size: 16px;
+            border: 1px solid var(--border); border-radius: var(--radius-sm);
+            color: var(--text); background: var(--field);
         }
-        input::placeholder, textarea::placeholder { color: var(--grey2); }
-        input:focus, textarea:focus, select:focus {
+        input::placeholder, textarea::placeholder { color: var(--disabled); }
+        input:focus, textarea:focus, select:focus, .editor:focus-within {
             outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary);
         }
         textarea { min-height: 96px; resize: vertical; }
-
-        .row { display: flex; gap: var(--s10); }
+        .row { display: flex; gap: 10px; }
         .row > * { flex: 1; }
-        .row .narrow { flex: 0 0 130px; }
+        .row .narrow { flex: 0 0 auto; white-space: nowrap; }
+        .row select.narrow { flex: 0 0 110px; }
 
-        /* Buttons are always full. */
         .btn {
-            display: inline-block; padding: var(--s10) var(--s20); font: inherit; font-weight: 600;
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 10px 32px; font: inherit; font-size: 16px; font-weight: 600;
             border: none; border-radius: var(--radius-full); cursor: pointer;
             background: var(--primary); color: var(--on-primary);
         }
-        .btn:hover { background: var(--primary3); }
-        .btn:focus-visible { outline: 2px solid var(--grey0); outline-offset: 2px; }
-        .btn.secondary { background: var(--raised); color: var(--grey0); border: 1px solid var(--grey4); }
-        .btn.secondary:hover { border-color: var(--grey3); }
+        .btn:hover { background: var(--primary-pressed); }
+        .btn.block { width: 100%; }
+        .btn.secondary { background: var(--surface-interactive); color: var(--text); border: 1px solid var(--border); }
+        .btn.secondary:hover { background: var(--surface-pressed); }
+        .btn.small { padding: 5px 14px; font-size: 14px; }
+        .link-btn { font: inherit; font-size: 14px; background: none; border: none; color: var(--muted); cursor: pointer; text-decoration: underline; padding: 0; }
 
-        /* Cards at radius 16. */
-        .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s10); }
-        .cards-mode { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-        .type-card {
-            border: 1px solid var(--grey4); border-radius: var(--radius-lg);
-            padding: var(--s14); cursor: pointer; background: var(--raised);
-            font-size: 14px; line-height: 1.4; text-align: left; position: relative;
+        /* Segmented choices (what it unlocks, where it lives). */
+        .seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+        .seg label, .type-card {
+            margin: 0; font-size: 14px; line-height: 18px; font-weight: 600; text-align: center;
+            padding: 10px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+            background: var(--surface-interactive); color: var(--text); cursor: pointer; position: relative;
         }
-        .type-card:hover { border-color: var(--grey3); }
-        .type-card input { position: absolute; opacity: 0; }
-        .type-card.selected { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -2px; background: var(--page); }
-        .type-card b { display: block; margin-bottom: var(--s3); font-weight: 600; color: var(--grey0); }
-        .type-card span { color: var(--grey2); }
+        .type-card input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .type-card span { display: block; font-weight: 400; color: var(--muted); font-size: 12px; line-height: 16px; margin-top: 3px; }
+        .type-card:hover { border-color: var(--disabled); }
+        .type-card.selected { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -2px; }
+        .type-card b { font-weight: 600; }
+        .badge { display: inline-block; font-size: 12px; line-height: 16px; font-weight: 600; padding: 0 8px; border-radius: var(--radius-full); background: var(--primary); color: var(--on-primary); margin-left: 5px; vertical-align: middle; }
 
-        .badge {
-            display: inline-block; font-size: 11px; font-weight: 600; line-height: 1;
-            letter-spacing: 0.04em; text-transform: uppercase;
-            padding: 4px 8px; border-radius: var(--radius-full); background: var(--primary); color: var(--on-primary);
-            vertical-align: middle; margin-left: var(--s8);
-        }
+        details { margin-top: 14px; }
+        details summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--muted); list-style: none; }
+        details summary::before { content: '▸ '; }
+        details[open] summary::before { content: '▾ '; }
 
-        details { border: 1px solid var(--grey4); border-radius: var(--radius-sm); padding: var(--s10) var(--s14); }
-        details summary { cursor: pointer; font-weight: 500; font-size: 14px; }
-
-        /* Numbered steps: the verb is bold. */
-        .deploy-steps { padding-left: var(--s20); margin: var(--s5) 0 var(--s8); font-size: 16px; }
-        .deploy-steps li { margin-bottom: var(--s10); }
-        .deploy-steps code, .hint code { font-size: 14px; background: var(--raised); padding: 1px 5px; border-radius: 4px; }
-        .deploy-steps .hint { display: block; }
-        .deploy-btn { display: block; width: fit-content; margin: var(--s8) 0 var(--s8); }
-        .deploy-btn img { height: 34px; display: block; }
-
-        .chips { display: flex; flex-wrap: wrap; gap: var(--s8); margin-top: var(--s5); }
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
         .chip {
-            border: 1px solid var(--grey4); border-radius: var(--radius-full); padding: var(--s5) var(--s14);
-            font: inherit; font-size: 14px; background: var(--raised); cursor: pointer; color: var(--grey0);
+            border: 1px solid var(--border); border-radius: var(--radius-full); padding: 5px 14px;
+            font: inherit; font-size: 14px; background: var(--surface-interactive); cursor: pointer; color: var(--text);
         }
-        .chip:hover { border-color: var(--grey3); }
-        .chip.selected { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -2px; background: var(--page); }
-        .chip.readonly { color: var(--grey2); }
-        #save-step .row > * { flex: 0 0 auto; }
+        .chip.selected { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -2px; }
+        .chip.readonly { color: var(--muted); }
 
-        /* ── The rich-text editor (editor.js) ── */
-        .editor { border: 1px solid var(--grey4); border-radius: var(--radius-sm); background: var(--field); margin-top: var(--s5); }
-        .editor:focus-within { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
-        .editor-toolbar {
-            display: flex; flex-wrap: wrap; gap: var(--s5); padding: var(--s8);
-            border-bottom: 1px solid var(--grey4); background: var(--raised);
-            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-        }
+        .deploy-btn { display: inline-block; margin: 5px 0 0; }
+        .deploy-btn img { height: 32px; display: block; }
+
+        /* ── Editor ── */
+        .editor { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--field); }
+        .editor-toolbar { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; border-bottom: 1px solid var(--border); }
         .editor-tool {
-            font: inherit; font-size: 14px; padding: var(--s5) var(--s10); border: 1px solid var(--grey4);
-            border-radius: var(--radius-full); background: var(--field); cursor: pointer; color: var(--grey0);
+            font: inherit; font-size: 14px; padding: 3px 10px; border: 1px solid var(--border);
+            border-radius: var(--radius-full); background: var(--surface-interactive); cursor: pointer; color: var(--text);
         }
         .editor-tool:hover { border-color: var(--primary); color: var(--primary); }
         .editor-tool.bold { font-weight: 700; }
         .editor-tool.italic { font-style: italic; }
-        .editor-area { min-height: 180px; padding: var(--s14); font-size: 16px; line-height: 1.5; outline: none; color: var(--grey0); }
-        .editor-area:empty::before { content: attr(data-placeholder); color: var(--grey2); }
-        .editor-area h2 { font-size: 24px; line-height: 1.2; font-weight: 700; margin: var(--s14) 0 var(--s8); }
-        .editor-area h3 { font-size: 20px; line-height: 1.3; font-weight: 500; margin: var(--s10) 0 var(--s5); }
-        .editor-area p { margin: 0 0 var(--s10); }
-        .editor-area ul, .editor-area ol { margin: 0 0 var(--s10); padding-left: 22px; }
-        .editor-area blockquote { border-left: 3px solid var(--primary); margin: var(--s8) 0; padding-left: var(--s14); color: var(--grey1); }
-        .editor-area a { color: var(--primary); }
+        .editor-area { min-height: 150px; padding: 14px; font-size: 16px; line-height: 24px; outline: none; }
+        .editor-area:empty::before { content: attr(data-placeholder); color: var(--disabled); }
+        .editor-area h2 { font-size: 20px; line-height: 24px; margin: 10px 0 5px; }
+        .editor-area h3 { font-size: 18px; line-height: 24px; font-weight: 600; margin: 8px 0 3px; }
+        .editor-area p { margin: 0 0 8px; }
+        .editor-area ul, .editor-area ol { margin: 0 0 8px; padding-left: 20px; }
+        .editor-area blockquote { border-left: 3px solid var(--primary); margin: 8px 0; padding-left: 10px; color: var(--text-2); }
         .editor-source { display: none; }
 
-        /* ── Right rail ── */
-        .preview-pane { position: sticky; top: var(--s14); }
-        .preview-pane h2 { font-size: 20px; line-height: 1.3; font-weight: 500; margin: 0 0 var(--s10); }
-        .preview-box {
-            border: 1px solid var(--grey4); border-radius: var(--radius-lg);
-            padding: var(--s20) var(--s14); background: var(--raised); margin-bottom: var(--s8);
-        }
-        .preview-actions { text-align: right; margin-bottom: var(--s30); }
-        .preview-actions button { font: inherit; font-size: 14px; background: none; border: none; color: var(--grey2); cursor: pointer; text-decoration: underline; }
-
+        /* ── Preview and code ── */
+        .preview-box { padding: 20px 10px; border-radius: var(--radius-sm); background: var(--surface-interactive); }
+        .preview-foot { text-align: right; margin-top: 8px; }
+        .code-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
         pre {
-            background: #1D1D1D; color: #FAF9F9; border: 1px solid var(--grey4); border-radius: var(--radius-sm);
-            padding: var(--s14); font-size: 14px; line-height: 1.4; overflow-x: auto; white-space: pre-wrap;
-            overflow-wrap: anywhere; margin: 0 0 var(--s10);
+            background: #0f0f0f; color: #FAF9F9; border: 1px solid var(--border); border-radius: var(--radius-sm);
+            padding: 14px; font-size: 13px; line-height: 18px; overflow-x: auto; white-space: pre-wrap;
+            overflow-wrap: anywhere; margin: 0;
         }
-        .copy-wrap { position: relative; }
+        .code-wrap.is-collapsed pre { max-height: 120px; overflow: hidden; }
+        .code-more { text-align: center; margin-top: 8px; }
 
-        /* Callout: the brand's note block, grey ground with an orange rule. */
-        .callout {
-            background: var(--raised); border-left: 4px solid var(--primary); border-radius: var(--radius-sm);
-            padding: var(--s14) var(--s20); font-size: 14px; line-height: 1.4; color: var(--grey1); margin: var(--s20) 0 0;
-        }
-        .callout b { color: var(--grey0); }
-
-        footer { margin-top: var(--s60); font-size: 14px; line-height: 1.4; color: var(--grey2); }
-        #hard-mode-note { display: none; }
+        footer { text-align: center; margin-top: 30px; font-size: 14px; line-height: 18px; color: var(--muted); }
+        #hard-mode-note, #link-warning { margin-top: 8px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <picture>
-                <source srcset="img/blink-dark.svg" media="(prefers-color-scheme: dark)">
-                <img src="img/blink-light.svg" alt="Blink">
-            </picture>
-            <span class="eyebrow"><b>Paywall</b>Get paid for what you write</span>
-            <h1>Put a Lightning paywall on anything</h1>
-            <p class="tagline">Readers pay in sats or their own currency and the money lands in your Blink wallet. Keep the paid part on your own server, or run it all in the page — the simpler option, but one a determined reader can get around.</p>
+    <div class="theme-switch"><button type="button" id="theme-toggle" aria-label="Switch theme">☾</button></div>
+
+    <div class="container" id="container">
+        <header class="hero">
+            <div class="mark"><img src="img/mark.svg" alt=""></div>
+            <h1>Blink Paywall</h1>
+            <p>Charge sats for an article, a download or a link. Paid straight to your Blink wallet.</p>
         </header>
 
-        <div class="layout">
-            <main>
-                <div class="step numbered">
-                    <h2><span class="n"></span>Where does the locked content live?</h2>
-                    <div class="cards cards-mode">
-                        <label class="type-card selected"><input type="radio" name="mode" value="hard" checked>
-                            <b>On my server <span class="badge">Recommended</span></b><span>Hard paywall (L402): your server releases the content only after the payment is verified. Free to deploy in minutes, no code.</span></label>
-                        <label class="type-card"><input type="radio" name="mode" value="soft">
-                            <b>In this page</b><span>Soft paywall: everything runs in the visitor's browser. Fine for tips and honest audiences; a determined visitor can bypass it with dev tools.</span></label>
-                    </div>
+        <section class="card" id="username-step">
+            <label for="username">Your Blink username</label>
+            <div class="row">
+                <input type="text" id="username" placeholder="satoshi" autocomplete="off" spellcheck="false">
+                <button class="btn narrow" id="check-username" type="button">Create paywall</button>
+            </div>
+            <p id="username-status"></p>
+        </section>
+
+        <div id="results" hidden>
+            <div class="columns">
+                <div class="sticky">
+                    <section class="card">
+                        <h2>Preview</h2>
+                        <div class="preview-box"><div id="preview"></div></div>
+                        <div class="preview-foot"><button type="button" class="link-btn" id="reset-preview">Reset preview unlocks</button></div>
+                    </section>
+
+                    <section class="card">
+                        <div class="code-head">
+                            <h2>Add to your site</h2>
+                            <button class="btn small" id="copy" type="button">Copy code</button>
+                        </div>
+                        <div class="code-wrap is-collapsed" id="code-wrap"><pre><code id="code"></code></pre></div>
+                        <div class="code-more"><button type="button" class="link-btn" id="code-toggle">Show full code</button></div>
+                        <p class="hint" id="hard-mode-note">The price and the content live on your server. The snippet only points at them.</p>
+                        <p class="error" id="link-warning" hidden>Long content makes this page's link very long. Keep the code as your backup.</p>
+                        <p class="hint"><button type="button" class="link-btn" id="copy-link">Copy link to this setup</button></p>
+                    </section>
                 </div>
 
-                <div class="step numbered" id="server-step">
-                    <h2><span class="n"></span>Your paywall server</h2>
-                    <ol class="deploy-steps">
-                        <li><b>Deploy it</b> — once, free, about two minutes. The setup asks for your Blink username, a secret key and a password for saving items.
-                            <a class="deploy-btn" href="https://deploy.workers.cloudflare.com/?url=https://github.com/Destinysmart/blink-paywall/tree/main/server" target="_blank" rel="noopener"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
-                            <span class="hint">Prefer your own machine? It also runs on Node or Deno — <a href="https://github.com/Destinysmart/blink-paywall/tree/main/server#readme" target="_blank" rel="noopener">instructions</a>.</span></li>
-                        <li><b>Connect it here</b> with its address and that password. Your items are then written and priced on this page and saved to your server.</li>
-                    </ol>
-                    <label for="server-url">Server address</label>
-                    <input type="url" id="server-url" placeholder="https://blink-paywall-server.you.workers.dev" autocomplete="off" spellcheck="false">
-                    <label for="server-password">Password for saving items</label>
-                    <div class="row">
-                        <input type="password" id="server-password" placeholder="the ADMIN_PASSWORD you set when deploying" autocomplete="off">
-                        <button class="btn narrow" id="connect-server" type="button">Connect</button>
-                    </div>
-                    <p id="server-status"></p>
-                    <p class="hint">Both stay in this browser only and are sent to nothing but your own server.</p>
-                    <div id="server-items" hidden>
-                        <label>Your items on the server <span class="hint" style="display:inline">(click one to edit it, or fill in a new one below)</span></label>
-                        <div class="chips" id="server-items-list"></div>
-                    </div>
-                    <details>
-                        <summary>Manage items as files instead</summary>
-                        <p class="hint">Drop a Markdown or HTML file into the server's <code>items/</code> folder with the title and price at the top, and push; the file name becomes the item. Then paste its URL here:</p>
-                        <label for="l402-url">Item URL</label>
+                <main>
+                    <section class="card" id="unlock-step">
+                        <h2>What a payment unlocks</h2>
+                        <div class="seg">
+                            <label class="type-card selected"><input type="radio" name="unlock-type" value="content" checked>Text<span>an article, written here</span></label>
+                            <label class="type-card"><input type="radio" name="unlock-type" value="secret">Secret<span>a code or password</span></label>
+                            <label class="type-card"><input type="radio" name="unlock-type" value="embed">Video<span>YouTube, PDF, embed</span></label>
+                            <label class="type-card"><input type="radio" name="unlock-type" value="redirect">Link<span>a download or page</span></label>
+                        </div>
+                        <div id="field-content">
+                            <label for="content-html">The locked part</label>
+                            <textarea id="content-html" rows="6" placeholder="The rest of the article..."></textarea>
+                        </div>
+                        <div id="field-secret" hidden>
+                            <label for="secret-text">The secret</label>
+                            <input type="text" id="secret-text" placeholder="COUPON-2024">
+                        </div>
+                        <div id="field-embed" hidden>
+                            <label for="embed-url">Embed URL</label>
+                            <input type="url" id="embed-url" placeholder="https://www.youtube-nocookie.com/embed/VIDEO_ID">
+                            <p class="hint">From YouTube's Share, then Embed.</p>
+                        </div>
+                        <div id="field-redirect" hidden>
+                            <label for="redirect-url">Send them to</label>
+                            <input type="url" id="redirect-url" placeholder="https://example.com/download">
+                        </div>
+                    </section>
+
+                    <section class="card" id="price-step">
+                        <h2>Price</h2>
                         <div class="row">
-                            <input type="url" id="l402-url" placeholder="https://blink-paywall-server.you.workers.dev/content/ebook" autocomplete="off" spellcheck="false">
-                            <button class="btn narrow" id="check-l402" type="button">Check</button>
-                        </div>
-                        <p id="l402-status"></p>
-                    </details>
-                </div>
-
-                <div class="step numbered" id="hard-unlock-step">
-                    <h2><span class="n"></span>What does a payment unlock?</h2>
-                    <div class="cards">
-                        <label class="type-card selected"><input type="radio" name="hard-type" value="article" checked>
-                            <b>An article or any text</b><span>written here, delivered by your server only after payment</span></label>
-                        <label class="type-card"><input type="radio" name="hard-type" value="link">
-                            <b>A link</b><span>download, thank-you page, booking</span></label>
-                    </div>
-                    <div id="field-hard-article">
-                        <label for="hard-markdown">The paid part</label>
-                        <textarea id="hard-markdown" rows="10" placeholder="The rest of the article..."></textarea>
-                        <p class="hint">Write it like in a document: the toolbar gives you headings, bold, italic, links and lists, and pasting from Word or Google Docs keeps the text and drops the clutter. Only the part behind the paywall goes here — the free intro stays on your own page, above the snippet.</p>
-                    </div>
-                    <div id="field-hard-link" hidden>
-                        <label for="hard-redirect">Send the visitor to</label>
-                        <input type="url" id="hard-redirect" placeholder="https://example.com/download">
-                    </div>
-                </div>
-
-                <div class="step numbered" id="username-step">
-                    <h2><span class="n"></span>Your Blink username</h2>
-                    <div class="row">
-                        <input type="text" id="username" placeholder="satoshi" autocomplete="off" spellcheck="false">
-                        <button class="btn narrow" id="check-username" type="button">Check</button>
-                    </div>
-                    <p class="hint">Payments go directly to this account. No Blink yet? <a href="https://get.blink.sv?referral=blink_paywall" target="_blank" rel="noopener">Download Blink</a> and pick a username.</p>
-                    <p id="username-status"></p>
-                </div>
-
-                <div class="step numbered" id="unlock-step">
-                    <h2><span class="n"></span>What does a payment unlock?</h2>
-                    <div class="cards" id="unlock-types">
-                        <label class="type-card selected"><input type="radio" name="unlock-type" value="content" checked>
-                            <b>Content on this page</b><span>an article or any text, written here</span></label>
-                        <label class="type-card"><input type="radio" name="unlock-type" value="secret">
-                            <b>A secret text</b><span>license key, coupon, password</span></label>
-                        <label class="type-card"><input type="radio" name="unlock-type" value="embed">
-                            <b>A video / embed</b><span>YouTube, PDF, any iframe</span></label>
-                        <label class="type-card"><input type="radio" name="unlock-type" value="redirect">
-                            <b>A link</b><span>download, thank-you page, booking</span></label>
-                    </div>
-
-                    <div id="field-content">
-                        <label for="content-html">The locked part</label>
-                        <textarea id="content-html" rows="8" placeholder="The rest of the article..."></textarea>
-                        <p class="hint">Write it like in a document: the toolbar gives you headings, bold, italic, links and lists, and pasting from Word or Google Docs keeps the text and drops the clutter. It stays inert in the page until paid — it doesn't render or load before payment.</p>
-                    </div>
-                    <div id="field-secret" hidden>
-                        <label for="secret-text">Secret to reveal</label>
-                        <input type="text" id="secret-text" placeholder="COUPON-2024 or a password">
-                    </div>
-                    <div id="field-embed" hidden>
-                        <label for="embed-url">Embed URL</label>
-                        <input type="url" id="embed-url" placeholder="https://www.youtube-nocookie.com/embed/VIDEO_ID">
-                        <p class="hint">For YouTube use the <i>Share → Embed</i> URL. The iframe only loads after payment.</p>
-                    </div>
-                    <div id="field-redirect" hidden>
-                        <label for="redirect-url">Send the visitor to</label>
-                        <input type="url" id="redirect-url" placeholder="https://example.com/download">
-                    </div>
-                </div>
-
-                <div class="step numbered" id="price-step">
-                    <h2><span class="n"></span>Price</h2>
-                    <div class="row">
-                        <input type="number" id="amount" value="1000" min="0" step="any">
-                        <select id="currency" class="narrow">
-                            <option value="sats" selected>sats</option>
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                            <option value="GBP">GBP</option>
-                            <option value="CHF">CHF</option>
-                            <option value="MXN">MXN</option>
-                            <option value="NGN">NGN</option>
-                            <option value="ZAR">ZAR</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="step numbered">
-                    <h2><span class="n"></span>Look &amp; behavior</h2>
-                    <label for="title">Title on the card</label>
-                    <input type="text" id="title" placeholder="Unlock the full article" value="Unlock the full article">
-                    <label for="description">Description (optional)</label>
-                    <input type="text" id="description" placeholder="One-time payment. No account needed.">
-                    <div class="row">
-                        <div>
-                            <label for="remember">Remember the unlock</label>
-                            <select id="remember">
-                                <option value="forever" selected>Forever (this device)</option>
-                                <option value="30d">30 days</option>
-                                <option value="7d">7 days</option>
-                                <option value="24h">24 hours</option>
+                            <input type="number" id="amount" value="1000" min="0" step="any">
+                            <select id="currency" class="narrow">
+                                <option value="sats" selected>sats</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                                <option value="CHF">CHF</option>
+                                <option value="MXN">MXN</option>
+                                <option value="NGN">NGN</option>
+                                <option value="ZAR">ZAR</option>
                             </select>
                         </div>
-                        <div>
-                            <label for="theme">Theme</label>
-                            <select id="theme">
-                                <option value="auto" selected>Auto (match visitor's device)</option>
-                                <option value="light">Light</option>
-                                <option value="dark">Dark</option>
-                            </select>
+                        <label for="title">Title on the card</label>
+                        <input type="text" id="title" placeholder="Unlock the full article" value="Unlock the full article">
+                        <details>
+                            <summary>More options</summary>
+                            <label for="description">Description</label>
+                            <input type="text" id="description" placeholder="One-time payment. No account needed.">
+                            <div class="row">
+                                <div>
+                                    <label for="remember">Remember the unlock</label>
+                                    <select id="remember">
+                                        <option value="forever" selected>Forever (this device)</option>
+                                        <option value="30d">30 days</option>
+                                        <option value="7d">7 days</option>
+                                        <option value="24h">24 hours</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="theme">Theme</label>
+                                    <select id="theme">
+                                        <option value="auto" selected>Auto</option>
+                                        <option value="light">Light</option>
+                                        <option value="dark">Dark</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <label for="item-id">Item id <span class="hint" style="display:inline">(unlocks are remembered per id)</span></label>
+                            <input type="text" id="item-id" placeholder="auto">
+                            <label for="unlock-class">CSS class added to &lt;html&gt; when unlocked</label>
+                            <input type="text" id="unlock-class" placeholder="supporter">
+                            <label for="webhook">Webhook URL (Zapier, Make, n8n)</label>
+                            <input type="url" id="webhook" placeholder="https://hooks.zapier.com/hooks/catch/...">
+                            <p class="hint">Fires from the reader's browser: a notification, not proof of payment.</p>
+                        </details>
+                    </section>
+
+                    <section class="card" id="server-card">
+                        <h2>Where the paid part lives</h2>
+                        <div class="seg">
+                            <label class="type-card selected"><input type="radio" name="mode" value="soft" checked>In this page<span>simplest; findable with browser tools</span></label>
+                            <label class="type-card"><input type="radio" name="mode" value="hard">On my server<span>released only after payment</span></label>
                         </div>
-                    </div>
-                </div>
 
-                <div class="step numbered" id="save-step">
-                    <h2><span class="n"></span>Save to your server</h2>
-                    <p class="hint">Saves the item <code id="save-id">…</code> with the title and price above. Connect your server first.</p>
-                    <div class="row">
-                        <button class="btn" id="save-item" type="button">Save item</button>
-                        <button class="btn secondary narrow" id="delete-item" type="button" hidden>Delete</button>
-                    </div>
-                    <p id="save-status"></p>
-                </div>
+                        <div id="server-step" hidden>
+                            <label>Your server</label>
+                            <p class="hint">No server yet? Deploy one free in two minutes. It asks for your username, a key and a password.</p>
+                            <a class="deploy-btn" href="https://deploy.workers.cloudflare.com/?url=https://github.com/Destinysmart/blink-paywall/tree/main/server" target="_blank" rel="noopener"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
+                            <label for="server-url">Server address</label>
+                            <input type="url" id="server-url" placeholder="https://blink-paywall-server.you.workers.dev" autocomplete="off" spellcheck="false">
+                            <label for="server-password">Password for saving items</label>
+                            <div class="row">
+                                <input type="password" id="server-password" placeholder="the one you set when deploying" autocomplete="off">
+                                <button class="btn narrow" id="connect-server" type="button">Connect</button>
+                            </div>
+                            <p id="server-status"></p>
+                            <div id="server-items" hidden>
+                                <label>Your items</label>
+                                <div class="chips" id="server-items-list"></div>
+                            </div>
+                        </div>
 
-                <div class="step">
-                    <details>
-                        <summary>Advanced</summary>
-                        <label for="item-id">Item id <span class="hint" style="display:inline">(unlocks are remembered per id)</span></label>
-                        <input type="text" id="item-id" placeholder="auto">
-                        <label for="unlock-class">Add a CSS class to &lt;html&gt; when unlocked</label>
-                        <input type="text" id="unlock-class" placeholder="supporter">
-                        <label for="webhook">Webhook — POST the receipt to a URL (Zapier, Make, n8n)</label>
-                        <input type="url" id="webhook" placeholder="https://hooks.zapier.com/hooks/catch/...">
-                        <p class="hint">The webhook fires from the visitor's browser — treat it as a notification, not as proof of payment.</p>
-                    </details>
-                </div>
-            </main>
+                        <div id="hard-unlock-step" hidden>
+                            <label>What a payment unlocks</label>
+                            <div class="seg">
+                                <label class="type-card selected"><input type="radio" name="hard-type" value="article" checked>Text<span>an article, written here</span></label>
+                                <label class="type-card"><input type="radio" name="hard-type" value="link">Link<span>a download or page</span></label>
+                            </div>
+                            <div id="field-hard-article">
+                                <label for="hard-markdown">The paid part</label>
+                                <textarea id="hard-markdown" rows="8" placeholder="The rest of the article..."></textarea>
+                            </div>
+                            <div id="field-hard-link" hidden>
+                                <label for="hard-redirect">Send them to</label>
+                                <input type="url" id="hard-redirect" placeholder="https://example.com/download">
+                            </div>
+                        </div>
 
-            <aside class="preview-pane">
-                <span class="eyebrow">What the reader sees</span>
-                <h2>Live preview</h2>
-                <div class="preview-box"><div id="preview"></div></div>
-                <div class="preview-actions"><button type="button" id="reset-preview">Reset preview unlocks</button></div>
-
-                <span class="eyebrow">Paste it into your page</span>
-                <h2>Your snippet</h2>
-                <div class="copy-wrap"><pre><code id="code"></code></pre></div>
-                <button class="btn" id="copy" type="button" style="width:100%">Copy code</button>
-                <button class="btn secondary" id="copy-link" type="button" style="width:100%; margin-top:8px">Copy link to this setup</button>
-                <p class="hint">This page's address keeps your settings — bookmark it to pick up where you left off.</p>
-                <p class="error" id="link-warning" hidden>Your locked content makes this link very long. It still works in a browser, but chat and email apps may cut it off — keep the snippet as your backup.</p>
-                <p class="hint" id="hard-mode-note">Hard mode: the price and the content live on <a href="https://github.com/Destinysmart/blink-paywall/tree/main/server#readme" target="_blank" rel="noopener">your server</a> — the snippet only points at it.</p>
-            </aside>
+                        <div id="save-step" hidden>
+                            <div class="row" style="margin-top:14px">
+                                <button class="btn" id="save-item" type="button">Save item</button>
+                                <button class="btn secondary narrow" id="delete-item" type="button" hidden>Delete</button>
+                            </div>
+                            <p class="hint">Saves <code id="save-id">…</code> with the title and price above.</p>
+                            <p id="save-status"></p>
+                            <details>
+                                <summary>Or use an item's URL</summary>
+                                <label for="l402-url">Item URL</label>
+                                <div class="row">
+                                    <input type="url" id="l402-url" placeholder="https://blink-paywall-server.you.workers.dev/content/ebook" autocomplete="off" spellcheck="false">
+                                    <button class="btn narrow secondary" id="check-l402" type="button">Check</button>
+                                </div>
+                                <p id="l402-status"></p>
+                                <p class="hint">Items can also be files in the server's <code>items/</code> folder. <a href="https://github.com/Destinysmart/blink-paywall/tree/main/server#readme" target="_blank" rel="noopener">Learn more</a></p>
+                            </details>
+                        </div>
+                    </section>
+                </main>
+            </div>
         </div>
 
         <footer>
-            <p class="callout"><b>Where the content lives decides how safe it is.</b> On your server it is released only after the Lightning payment is verified. In the page it is hidden until paid, but a determined reader can find it with browser tools. <a href="https://github.com/Destinysmart/blink-paywall#security-model" target="_blank" rel="noopener">Learn more</a></p>
-            <p>Open source (AGPL-3.0) — <a href="https://github.com/Destinysmart/blink-paywall" target="_blank" rel="noopener">GitHub</a></p>
+            <p>Open source, AGPL-3.0. <a href="https://github.com/Destinysmart/blink-paywall#security-model" target="_blank" rel="noopener">How the two modes differ</a></p>
         </footer>
     </div>
 

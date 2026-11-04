@@ -115,7 +115,7 @@ describe('restoring from the hash', () => {
 
     it('ignores an unknown unlock type and keeps the default', () => {
         loadGenerator('#type=not-a-type');
-        expect(checked('mode')).toBe('hard');
+        expect(checked('mode')).toBe('soft');
     });
 
     it('ignores unknown params without throwing', () => {
@@ -127,7 +127,8 @@ describe('restoring from the hash', () => {
         loadGenerator('');
         expect($('username').value).toBe('');
         expect($('amount').value).toBe('1000');
-        expect(checked('mode')).toBe('hard');
+        expect(checked('mode')).toBe('soft');
+        expect($('results').hidden).toBe(true); // nothing opens until there is a username
     });
 });
 
@@ -155,9 +156,9 @@ describe('writing the hash', () => {
         expect(params.get('currency')).toBeNull();
         expect(params.get('theme')).toBeNull();
         expect(params.get('title')).toBeNull();
-        // Except the type: it is always recorded, so links from before hard
-        // mode was the default (which have none) can be told apart.
-        expect(params.get('type')).toBe('l402');
+        // Except the type: it is always recorded, so the page can tell a
+        // deliberate choice from a link made before the type was written.
+        expect(params.get('type')).toBe('content');
     });
 
     it('records a non-default unlock type', () => {
@@ -200,30 +201,40 @@ describe('writing the hash', () => {
 });
 
 describe('hard mode', () => {
-    it('is the default: shows the server step only, and emits data-l402', () => {
-        loadGenerator('');
+    it('shows the server step and emits data-l402; the soft unlock step hides', () => {
+        loadGenerator('#type=l402');
+        expect($('results').hidden).toBe(false); // a restored setup opens the page
         expect($('server-step').hidden).toBe(false);
-        expect($('username-step').hidden).toBe(true);
+        expect($('username-step').hidden).toBe(false); // the entry point stays
         expect($('unlock-step').hidden).toBe(true);
         expect($('price-step').hidden).toBe(false); // the price is set here and saved to the server
         expect($('code').textContent).toContain('data-l402="');
         expect($('code').textContent).not.toContain('data-username');
     });
 
-    it('switching to the soft path swaps in its own steps, and back', () => {
-        loadGenerator('');
+    it('switching between the two homes swaps the steps', () => {
+        loadGenerator('#type=l402');
         chooseMode('soft');
         expect($('server-step').hidden).toBe(true);
-        expect($('username-step').hidden).toBe(false);
         expect($('unlock-step').hidden).toBe(false);
-        expect($('price-step').hidden).toBe(false);
         expect($('code').textContent).toContain('data-username');
         expect($('code').textContent).not.toContain('data-l402');
 
         chooseMode('hard');
         expect($('server-step').hidden).toBe(false);
-        expect($('username-step').hidden).toBe(true);
+        expect($('unlock-step').hidden).toBe(true);
         expect($('code').textContent).toContain('data-l402="');
+    });
+
+    it('opens the rest of the page once the username checks out', async () => {
+        vi.useRealTimers();
+        loadGenerator('');
+        expect($('results').hidden).toBe(true);
+        $('username').value = 'alice';
+        $('check-username').click();
+        await vi.waitFor(() => expect($('results').hidden).toBe(false));
+        expect($('username-status').className).toBe('success');
+        expect($('code').textContent).toContain('data-username="alice"');
     });
 
     it('checks an endpoint and reports the price from its L402 challenge', async () => {
@@ -314,12 +325,11 @@ describe('hard mode: your server', () => {
     }
 
     it('shows its own steps: server, what to unlock, price, save', () => {
-        loadGenerator('');
+        loadGenerator('#type=l402');
         expect($('server-step').hidden).toBe(false);
         expect($('hard-unlock-step').hidden).toBe(false);
         expect($('price-step').hidden).toBe(false);
         expect($('save-step').hidden).toBe(false);
-        expect($('username-step').hidden).toBe(true);
         expect($('unlock-step').hidden).toBe(true);
         expect($('save-id').textContent).toBe('unlock-the-full-article');
     });
@@ -327,7 +337,7 @@ describe('hard mode: your server', () => {
     it('connects, lists the items and loads one into the form', async () => {
         vi.useRealTimers();
         const calls = fakeServer();
-        loadGenerator('');
+        loadGenerator('#type=l402');
         await connect();
         expect($('server-status').className).toBe('success');
         expect($('server-status').textContent).toContain('@alice');
@@ -349,7 +359,7 @@ describe('hard mode: your server', () => {
     it('reports a wrong password and does not keep the server', async () => {
         vi.useRealTimers();
         fakeServer();
-        loadGenerator('');
+        loadGenerator('#type=l402');
         await connect('wrong');
         expect($('server-status').className).toBe('error');
         expect($('server-status').textContent).toContain('Wrong password');
@@ -359,7 +369,7 @@ describe('hard mode: your server', () => {
     it('saves a new item to the server and points the snippet at it', async () => {
         vi.useRealTimers();
         const calls = fakeServer();
-        loadGenerator('');
+        loadGenerator('#type=l402');
         await connect();
         $('title').value = 'My story';
         $('amount').value = '500';
@@ -385,7 +395,7 @@ describe('hard mode: your server', () => {
     it('with the editor loaded, what is typed in it is what gets saved', async () => {
         vi.useRealTimers();
         const calls = fakeServer();
-        loadGenerator('', { withEditor: true });
+        loadGenerator('#type=l402', { withEditor: true });
         await connect();
         $('title').value = 'Edited story';
         $('title').dispatchEvent(new Event('input', { bubbles: true }));
@@ -407,7 +417,7 @@ describe('hard mode: your server', () => {
     it('keeps the connection in this browser, never in the link', async () => {
         vi.useRealTimers();
         fakeServer();
-        loadGenerator('');
+        loadGenerator('#type=l402');
         await connect();
         expect(window.location.hash).not.toContain('secret-pw');
         expect(window.location.hash).not.toContain('paywall.example');
