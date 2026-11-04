@@ -19,6 +19,12 @@
         return document.getElementById(id);
     };
 
+    // Deferred work (debounced URL sync, preview mount, server replies) must
+    // not touch a form that is no longer in the document.
+    function mounted() {
+        return Boolean(document.getElementById('code'));
+    }
+
     var state = { usernameOk: false, previewInstance: null, server: null };
 
     // The connected server (address + password) lives in this browser only.
@@ -264,6 +270,7 @@
     }
 
     function renderServerItems() {
+        if (!mounted()) return;
         var list = $('server-items-list');
         list.innerHTML = '';
         var items = (state.server && state.server.items) || [];
@@ -474,6 +481,7 @@
     }
 
     function syncHash() {
+        if (!mounted()) return;
         var hash = buildHash();
         var url = window.location.pathname + window.location.search + (hash ? '#' + hash : '');
         try {
@@ -533,9 +541,39 @@
         return attributes;
     }
 
+    // ── Plain text in, HTML out ──
+    //
+    // Nobody should have to write <p> tags. Text typed into the content box is
+    // formatted: blank line = new paragraph, plus the small Markdown set the
+    // server understands (the converter is shared with it, loaded as a module
+    // by index.html). Anything that already looks like HTML passes through.
+
+    function looksLikeHtml(text) {
+        return /^\s*<[a-zA-Z!/]/.test(text);
+    }
+
+    function plainToHtml(text) {
+        return String(text)
+            .replace(/\r\n?/g, '\n')
+            .trim()
+            .split(/\n{2,}/)
+            .map(function (block) {
+                return '<p>' + escapeText(block).replace(/\n/g, '<br>') + '</p>';
+            })
+            .join('\n');
+    }
+
+    function toHtml(text) {
+        var source = String(text || '');
+        if (!source.trim()) return '';
+        if (looksLikeHtml(source)) return source.trim();
+        if (window.BlinkMarkdown) return window.BlinkMarkdown.markdownToHtml(source);
+        return plainToHtml(source);
+    }
+
     function templateInner(config) {
         if (config.type === 'content') {
-            return config.contentHtml.trim() || '<p>Your locked content here.</p>';
+            return toHtml(config.contentHtml) || '<p>Your locked content here.</p>';
         }
         if (config.type === 'secret') {
             return (
@@ -568,7 +606,7 @@
         if (inner) {
             lines.push('<div ' + attributes + '>');
             lines.push('  <template>');
-            lines.push('    ' + inner);
+            lines.push('    ' + inner.replace(/\n/g, '\n    '));
             lines.push('  </template>');
             lines.push('</div>');
         } else {
@@ -580,7 +618,7 @@
     // ── Live preview ──
 
     function renderPreview(config) {
-        if (!window.BlinkPaywall) return;
+        if (!window.BlinkPaywall || !mounted()) return;
         if (state.previewInstance) state.previewInstance.destroy();
         state.previewInstance = null;
         var host = $('preview');
@@ -628,6 +666,7 @@
     var previewTimer = null;
 
     function update() {
+        if (!mounted()) return;
         var config = readForm();
         $('code').textContent = buildSnippet(config);
         clearTimeout(hashTimer);
@@ -710,6 +749,10 @@
             }, 1500);
         });
     });
+
+    // Re-render once the shared Markdown converter has loaded (module scripts
+    // run after this one), so restored content is formatted the same way.
+    document.addEventListener('blink:markdown-ready', update);
 
     $('reset-preview').addEventListener('click', function () {
         Object.keys(localStorage)

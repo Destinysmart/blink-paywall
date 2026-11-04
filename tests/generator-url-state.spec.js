@@ -50,6 +50,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
     document.body.innerHTML = '';
@@ -386,6 +387,37 @@ describe('hard mode: your server', () => {
             origin: SERVER,
             password: 'secret-pw',
         });
+    });
+});
+
+describe('plain text in the content box', () => {
+    it('formats paragraphs and escapes markup when no converter is loaded', () => {
+        loadGenerator('#type=content');
+        $('content-html').value = 'First line\nsecond line\n\nA <b>second</b> paragraph';
+        $('content-html').dispatchEvent(new Event('input', { bubbles: true }));
+        const snippet = $('code').textContent;
+        expect(snippet).toContain('<p>First line<br>second line</p>');
+        expect(snippet).toContain('<p>A &lt;b&gt;second&lt;/b&gt; paragraph</p>');
+    });
+
+    it('uses the shared Markdown converter when the page has loaded it', async () => {
+        const { markdownToHtml } = await import('../server/markdown.js');
+        window.BlinkMarkdown = { markdownToHtml };
+        try {
+            loadGenerator('#type=content');
+            $('content-html').value = '## Part two\n\nThe **paid** part.';
+            $('content-html').dispatchEvent(new Event('input', { bubbles: true }));
+            expect($('code').textContent).toContain('<h2>Part two</h2>\n    <p>The <strong>paid</strong> part.</p>');
+        } finally {
+            delete window.BlinkMarkdown;
+        }
+    });
+
+    it('passes HTML through untouched', () => {
+        loadGenerator('#type=content');
+        $('content-html').value = '<p>Already <em>HTML</em></p>';
+        $('content-html').dispatchEvent(new Event('input', { bubbles: true }));
+        expect($('code').textContent).toContain('<p>Already <em>HTML</em></p>');
     });
 });
 

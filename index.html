@@ -225,9 +225,9 @@
                             <b>A link</b><span>download, thank-you page, booking</span></label>
                     </div>
                     <div id="field-hard-article">
-                        <label for="hard-markdown">The paid part (Markdown or HTML)</label>
-                        <textarea id="hard-markdown" rows="10" placeholder="## Part two&#10;&#10;The rest of the article..."></textarea>
-                        <p class="hint">Only the part behind the paywall goes here. The free intro stays on your own page, above the snippet.</p>
+                        <label for="hard-markdown">The paid part</label>
+                        <textarea id="hard-markdown" rows="10" placeholder="The rest of the article...&#10;&#10;Leave a blank line to start a new paragraph."></textarea>
+                        <p class="hint">Write it like a normal text. A blank line starts a new paragraph; <code>**bold**</code>, <code># Heading</code> and links work too, and so does HTML if you have it. Only the part behind the paywall goes here — the free intro stays on your own page, above the snippet.</p>
                     </div>
                     <div id="field-hard-link" hidden>
                         <label for="hard-redirect">Send the visitor to</label>
@@ -249,7 +249,7 @@
                     <h2><span class="n"></span>What does a payment unlock?</h2>
                     <div class="cards" id="unlock-types">
                         <label class="type-card selected"><input type="radio" name="unlock-type" value="content" checked>
-                            <b>Content on this page</b><span>article, image, audio — any HTML</span></label>
+                            <b>Content on this page</b><span>an article or any text, written here</span></label>
                         <label class="type-card"><input type="radio" name="unlock-type" value="secret">
                             <b>A secret text</b><span>license key, coupon, password</span></label>
                         <label class="type-card"><input type="radio" name="unlock-type" value="embed">
@@ -259,9 +259,9 @@
                     </div>
 
                     <div id="field-content">
-                        <label for="content-html">Locked content (HTML or plain text)</label>
-                        <textarea id="content-html" placeholder="&lt;p&gt;The rest of the article...&lt;/p&gt;"></textarea>
-                        <p class="hint">Stays inside an inert <code>&lt;template&gt;</code> — it doesn't render or load before payment.</p>
+                        <label for="content-html">The locked part</label>
+                        <textarea id="content-html" rows="8" placeholder="The rest of the article...&#10;&#10;Leave a blank line to start a new paragraph."></textarea>
+                        <p class="hint">Write it like a normal text. A blank line starts a new paragraph; <code>**bold**</code>, <code># Heading</code> and links work too, and so does HTML if you have it. Stays inert in the page until paid — it doesn't render or load before payment.</p>
                     </div>
                     <div id="field-secret" hidden>
                         <label for="secret-text">Secret to reveal</label>
@@ -369,5 +369,13 @@
 
     <script src="v1/blink-paywall.js"></script>
     <script src="generator.js"></script>
+    <script type="module">
+        // The same converter the server uses, so what the preview shows is
+        // what a paying visitor gets. Soft mode formats on this page; hard
+        // mode sends the text and the server formats it.
+        import { markdownToHtml } from './server/markdown.js';
+        window.BlinkMarkdown = { markdownToHtml };
+        document.dispatchEvent(new Event('blink:markdown-ready'));
+    </script>
 </body>
 </html>
