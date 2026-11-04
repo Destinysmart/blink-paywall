@@ -6,6 +6,7 @@
 import { buildContent, isItemFile } from './items.js';
 import { bytesToHex } from './macaroon.js';
 import { createPaywall } from './paywall.js';
+import { createDocumentStore } from './store.js';
 
 const PORT = Number(Deno.env.get('PORT') || 4402);
 
@@ -19,6 +20,8 @@ if (!rootKey) {
 }
 
 const contentFile = Deno.env.get('CONTENT_FILE') || new URL('./content.json', import.meta.url);
+const savedItemsFile =
+    Deno.env.get('SAVED_ITEMS_FILE') || new URL('./saved-items.json', import.meta.url);
 
 /** content.json plus every .md / .html file in items/ next to this file. */
 async function loadContent() {
@@ -51,6 +54,18 @@ const paywall = createPaywall({
     tokenTtlDays: Deno.env.get('TOKEN_TTL_DAYS'),
     invoicesPerMinute: Deno.env.get('INVOICES_PER_MINUTE'),
     widgetUrl: Deno.env.get('WIDGET_URL'),
+    adminPassword: Deno.env.get('ADMIN_PASSWORD'),
+    store: createDocumentStore(
+        async () => {
+            try {
+                return await Deno.readTextFile(savedItemsFile);
+            } catch (error) {
+                if (error instanceof Deno.errors.NotFound) return null;
+                throw error;
+            }
+        },
+        (text) => Deno.writeTextFile(savedItemsFile, text)
+    ),
 });
 
 Deno.serve({ port: PORT }, (request, info) =>

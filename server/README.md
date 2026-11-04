@@ -16,12 +16,16 @@ Works for custodial Blink accounts and self-custodial (Spark) ones alike.
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Destinysmart/blink-paywall/tree/main/server)
 
-The setup page asks for two values:
+The setup page asks for three values:
 
 | | |
 |---|---|
 | `BLINK_USERNAME` | your Blink username — every payment lands in this account |
 | `L402_ROOT_KEY` (secret) | 64 hex characters: `openssl rand -hex 32`. **Keep it.** A new key invalidates every unlock already sold. |
+| `ADMIN_PASSWORD` (secret) | anything long. The generator presents it to save items to this server. |
+
+It also creates a small key-value store (the `ITEMS` binding in
+`wrangler.jsonc`) where items saved from the generator live.
 
 Cloudflare creates a copy of this folder in your GitHub account. Edit
 `content.json` there and push: it redeploys. Your items live at
@@ -50,7 +54,25 @@ the platform's fetch handler.
 
 ## Your content
 
-### The easy way — one file per item
+### The easiest way — from the generator
+
+Open the [generator](https://destinysmart.github.io/blink-paywall/), choose
+**On my server**, enter the server's address and the `ADMIN_PASSWORD`, and
+connect. Your items are listed; write a new one (title, price, the paid part
+in Markdown, or a link), press **Save item**, and it is live with the snippet
+ready to copy. Behind that is a tiny password-protected API:
+
+| | |
+|---|---|
+| `GET /admin/items` | list: static items (read-only) and saved ones (editable) |
+| `PUT /admin/items/<id>` | save `{ title, price, currency, markdown \| html \| redirect }` |
+| `DELETE /admin/items/<id>` | remove a saved item |
+
+All three take `Authorization: Bearer <ADMIN_PASSWORD>`. Saved items are kept
+in Workers KV on Cloudflare and in `saved-items.json` on Node / Deno, and win
+over a file or JSON item with the same id.
+
+### Or one file per item
 
 Drop a Markdown (or HTML) file into `items/`, with the title and price at the
 top, and push. No JSON.
@@ -130,6 +152,8 @@ L402 challenge.
 | `PORT` | `4402` | Node / Deno |
 | `CONTENT_FILE` | `./content.json` | Node / Deno: another content file |
 | `WIDGET_URL` | this repo's Pages build | widget bundle the demo page at `/` loads |
+| `ADMIN_PASSWORD` | — | lets the generator save items here; unset = saving is off |
+| `SAVED_ITEMS_FILE` | `./saved-items.json` | Node / Deno: where saved items are kept |
 
 ## Endpoints
 
@@ -138,6 +162,7 @@ L402 challenge.
 | `GET /content/<id>` | the L402-protected item — this is the `data-l402` URL |
 | `GET /` | demo page: every item with the widget mounted, plus its snippet |
 | `GET /.well-known/blink-paywall.json` | machine-readable item list (`{ username, items: [{ id, title, price, currency, url }] }`) |
+| `/admin/items[/<id>]` | items saved from the generator, see above |
 
 All responses are `Cache-Control: no-store` and CORS-open (`*`): the embed is
 cross-origin by nature, and that is safe because tokens travel in an explicit

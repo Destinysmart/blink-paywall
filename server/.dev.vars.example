@@ -1,3 +1,5 @@
 # Secret that signs every unlock token. Generate: openssl rand -hex 32
 # Keep it — changing it invalidates every unlock already sold.
 L402_ROOT_KEY=
+# Password the generator uses to save items to this server. Pick anything long.
+ADMIN_PASSWORD=

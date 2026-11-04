@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { decodeMacaroon } from '../server/macaroon.js';
 import { createPaywall, formatPrice, normalizeContent, VERSION } from '../server/paywall.js';
+import { createKvStore, createMemoryStore } from '../server/store.js';
 
 const ROOT_KEY = 'aa'.repeat(32);
 const ROOT_KEY_BYTES = Buffer.from(ROOT_KEY, 'hex');
@@ -412,5 +413,172 @@ describe('routing', () => {
         const html = await (await instance.handle(get('https://pay.example/'))).text();
         expect(html).not.toContain('<img src=x');
         expect(html).toContain('&lt;img src=x');
+    });
+});
+
+describe('items saved from the generator (/admin/items)', () => {
+    const PASSWORD = 'correct horse battery staple';
+    const auth = { Authorization: `Bearer ${PASSWORD}` };
+    const put = (url, body, headers = auth) =>
+        new Request(url, {
+            method: 'PUT',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+
+    function adminPaywall(extra = {}) {
+        return paywall({ adminPassword: PASSWORD, store: createMemoryStore(), ...extra });
+    }
+
+    it('is off without a password, and refuses a wrong one', async () => {
+        const { instance: off } = paywall({ store: createMemoryStore() });
+        expect((await off.handle(get('https://pay.example/admin/items', auth))).status).toBe(503);
+
+        const { instance } = adminPaywall();
+        expect((await instance.handle(get('https://pay.example/admin/items'))).status).toBe(401);
+        const wrong = await instance.handle(
+            get('https://pay.example/admin/items', { Authorization: 'Bearer nope' })
+        );
+        expect(wrong.status).toBe(401);
+        expect(wrong.headers.get('WWW-Authenticate')).toBe('Bearer');
+    });
+
+    it('lists static items as read-only and saved ones as editable', async () => {
+        const { instance } = adminPaywall();
+        const before = await (await instance.handle(get('https://pay.example/admin/items', auth))).json();
+        expect(before.username).toBe('alice');
+        expect(before.items.map((item) => [item.id, item.editable])).toEqual([
+            ['ebook', false],
+            ['download', false],
+        ]);
+
+        const saved = await instance.handle(
+            put('https://pay.example/admin/items/my-story', {
+                title: 'Read on',
+                price: 500,
+                currency: 'NGN',
+                markdown: '## Part two\n\nThe **paid** part.',
+            })
+        );
+        expect(saved.status).toBe(200);
+        expect(await saved.json()).toEqual({
+            id: 'my-story',
+            title: 'Read on',
+            price: 500,
+            currency: 'NGN',
+            kind: 'article',
+            url: 'https://pay.example/content/my-story',
+            editable: true,
+            markdown: '## Part two\n\nThe **paid** part.',
+            html: '<h2>Part two</h2>\n<p>The <strong>paid</strong> part.</p>',
+            redirect: null,
+        });
+
+        const after = await (await instance.handle(get('https://pay.example/admin/items', auth))).json();
+        expect(after.items.map((item) => item.id)).toEqual(['ebook', 'download', 'my-story']);
+    });
+
+    it('serves a saved item through the normal L402 flow, Markdown converted', async () => {
+        const { instance } = adminPaywall();
+        await instance.handle(
+            put('https://pay.example/admin/items/my-story', {
+                price: 210,
+                markdown: 'Paid **text**',
+            })
+        );
+        const challenge = await instance.handle(get('https://pay.example/content/my-story'));
+        expect(challenge.status).toBe(402);
+        const { macaroon } = challengeOf(challenge);
+        const paid = await instance.handle(
+            get('https://pay.example/content/my-story', {
+                Authorization: `L402 ${macaroon}:${PREIMAGE}`,
+            })
+        );
+        expect(await paid.json()).toEqual({ html: '<p>Paid <strong>text</strong></p>' });
+
+        const list = await (await instance.handle(get('https://pay.example/.well-known/blink-paywall.json'))).json();
+        expect(list.items.map((item) => item.id)).toContain('my-story');
+    });
+
+    it('a saved copy overrides a static item with the same id', async () => {
+        const { instance } = adminPaywall();
+        await instance.handle(
+            put('https://pay.example/admin/items/ebook', { price: 300, html: '<p>new</p>' })
+        );
+        const list = await (await instance.handle(get('https://pay.example/.well-known/blink-paywall.json'))).json();
+        expect(list.items.find((item) => item.id === 'ebook').price).toBe(300);
+        const admin = await (await instance.handle(get('https://pay.example/admin/items', auth))).json();
+        expect(admin.items.filter((item) => item.id === 'ebook')).toEqual([
+            expect.objectContaining({ editable: true, price: 300 }),
+        ]);
+    });
+
+    it('link items, validation errors and deletion', async () => {
+        const { instance } = adminPaywall();
+        const link = await instance.handle(
+            put('https://pay.example/admin/items/pdf', {
+                title: 'PDF',
+                price: 1000,
+                redirect: 'https://x.example/f.pdf',
+            })
+        );
+        expect(await link.json()).toMatchObject({ kind: 'link', redirect: 'https://x.example/f.pdf' });
+
+        const zero = await instance.handle(put('https://pay.example/admin/items/z', { price: 0, markdown: 'x' }));
+        expect(zero.status).toBe(400);
+        expect((await zero.json()).error).toContain('positive price');
+        const empty = await instance.handle(put('https://pay.example/admin/items/z', { price: 5 }));
+        expect(empty.status).toBe(400);
+        expect((await instance.handle(put('https://pay.example/admin/items/bad%20name', { price: 5, html: 'x' }))).status).toBe(400);
+        expect(
+            (
+                await instance.handle(
+                    new Request('https://pay.example/admin/items/z', { method: 'PUT', headers: auth, body: '{' })
+                )
+            ).status
+        ).toBe(400);
+
+        expect(
+            (await instance.handle(new Request('https://pay.example/admin/items/pdf', { method: 'DELETE', headers: auth }))).status
+        ).toBe(204);
+        expect(
+            (await instance.handle(new Request('https://pay.example/admin/items/pdf', { method: 'DELETE', headers: auth }))).status
+        ).toBe(404);
+        // Static items cannot be deleted (they are files), only shadowed.
+        expect(
+            (await instance.handle(new Request('https://pay.example/admin/items/ebook', { method: 'DELETE', headers: auth }))).status
+        ).toBe(404);
+    });
+
+    it('preflight advertises PUT and DELETE; content stays GET-only', async () => {
+        const { instance } = adminPaywall();
+        const preflight = await instance.handle(
+            new Request('https://pay.example/admin/items/x', { method: 'OPTIONS' })
+        );
+        expect(preflight.headers.get('Access-Control-Allow-Methods')).toContain('PUT');
+        expect(
+            (await instance.handle(new Request('https://pay.example/content/ebook', { method: 'POST' }))).status
+        ).toBe(405);
+    });
+
+    it('createKvStore keeps everything under one key', async () => {
+        const data = new Map();
+        const namespace = {
+            async get(key, type) {
+                const value = data.get(key);
+                if (value === undefined) return null;
+                return type === 'json' ? JSON.parse(value) : value;
+            },
+            async put(key, value) {
+                data.set(key, value);
+            },
+        };
+        const store = createKvStore(namespace);
+        expect(await store.list()).toEqual({});
+        await store.put('a', { price: 1, html: 'x' });
+        await store.put('b', { price: 2, html: 'y' });
+        await store.remove('a');
+        expect(await store.list()).toEqual({ b: { price: 2, html: 'y' } });
+        expect([...data.keys()]).toEqual(['items']);
     });
 });

@@ -12,7 +12,9 @@ Two ways to run it:
 - **Hard paywall (recommended)** — the content stays on *your* server and is
   released only after the payment is cryptographically verified ([L402](https://docs.lightning.engineering/the-lightning-network/l402)).
   The [`server/`](server/) folder is that server: zero dependencies, deploys
-  to Cloudflare Workers (free) with one click, or runs on Node / Deno.
+  to Cloudflare Workers (free) with one click, or runs on Node / Deno. Once it
+  is up, the generator connects to it and items are written, priced and saved
+  from the page — no files, no JSON.
 - **Soft paywall** — no backend at all; everything happens in the visitor's
   browser. Honest-audience grade: see [Security model](#security-model-read-this).
 

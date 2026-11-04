@@ -6,6 +6,8 @@
     "main": "worker.js",
     "compatibility_date": "2025-10-01",
     "observability": { "enabled": true },
+    // Items saved from the generator. No id: Cloudflare creates the namespace on deploy.
+    "kv_namespaces": [{ "binding": "ITEMS" }],
     "vars": {
         // Your Blink username — every payment lands in this account.
         "BLINK_USERNAME": "satoshi",

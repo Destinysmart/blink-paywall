@@ -24,7 +24,9 @@ src/storage.js        receipts / pending invoices / L402 tokens; ALL guarded try
 src/ui.js             shadow-DOM card; reports intent via handlers (onUnlock/onRetry/onPreimage)
 src/qr.js             vendored qrcode-generator 1.4.4 (MIT) — do not edit, eslint-ignored
 index.html+generator.js  generator page, served raw (no build); step 1 picks where the content
-                      lives (hard server / soft page) and each path shows only its own steps
+                      lives (hard server / soft page) and each path shows only its own steps. Hard
+                      path: connect to the owner's server (address + ADMIN_PASSWORD, kept in
+                      localStorage only, never in the URL hash), write/price the item here, PUT it there
 
 server/paywall.js     THE hard-paywall server: createPaywall(options).handle(Request) → Response.
                       Web standard only (fetch/Request/Response/Web Crypto): no node:*, no DOM.
@@ -36,6 +38,9 @@ server/node.mjs       node:http adapter        BLINK_USERNAME=you node server/no
 server/worker.js      Cloudflare Workers entry  (content.json imported as a module)
 server/deno.js        Deno / Deno Deploy entry
 server/content.json   the owner's items: { id: { title, price, currency, html | redirect | response } }
+server/store.js       where items saved from the generator live: KV (Workers), a JSON file (Node /
+                      Deno), memory (tests). paywall.js: /admin/items[/:id] behind Bearer ADMIN_PASSWORD;
+                      saved items win over static ones at read time (allItems())
 server/items/         one .md / .html per item, header (title/price/currency/redirect) + body; the
                       easy path. items.js parses them, markdown.js converts; node/deno read the
                       folder at boot, Workers get content.generated.json from build-content.mjs
@@ -89,6 +94,9 @@ Everything is called unauthenticated. The server needs no API key either
   versioned (`/v1/`) — breaking changes mean `/v2/`.
 - The 402 challenge is standard L402 (`macaroon`, `invoice`); `verify` is an
   additive extension the widget tolerates being absent. Never require it.
+- `/admin/items` is the only write surface and only ever behind
+  `ADMIN_PASSWORD` (constant-time compare); without the secret it answers 503.
+  The generator never puts the server address or password in the URL hash.
 - `paywall.js` must not import concrete sources; `sources/*` must not touch
   the DOM; `ui.js` must not do payments; `storage.js` never throws.
 - `server/` is **self-contained**: no imports from `src/` (Deploy to

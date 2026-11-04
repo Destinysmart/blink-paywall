@@ -149,6 +149,15 @@
         .deploy-steps { padding-left: 20px; margin: 4px 0 8px; font-size: 14px; }
         .deploy-steps li { margin-bottom: 10px; }
         .deploy-steps code, .hint code { font-size: 13px; background: var(--surface-static); padding: 1px 5px; border-radius: 4px; }
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+        .chip {
+            border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px;
+            font: inherit; font-size: 13px; background: var(--surface-static); cursor: pointer;
+            color: var(--text-primary);
+        }
+        .chip.selected { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -2px; background: #fff; }
+        .chip.readonly { color: var(--text-muted); }
+        #save-step .row > * { flex: 0 0 auto; }
         .deploy-btn { display: block; width: fit-content; margin: 8px 0 6px; }
         .deploy-btn img { height: 34px; display: block; }
         .deploy-steps .hint { display: block; }
@@ -177,19 +186,53 @@
                 <div class="step numbered" id="server-step">
                     <h2><span class="n"></span>Your paywall server</h2>
                     <ol class="deploy-steps">
-                        <li><b>Deploy it</b> — once, free, about two minutes. The setup asks for your Blink username and a secret key.
+                        <li><b>Deploy it</b> — once, free, about two minutes. The setup asks for your Blink username, a secret key and a password for saving items.
                             <a class="deploy-btn" href="https://deploy.workers.cloudflare.com/?url=https://github.com/Destinysmart/blink-paywall/tree/main/server" target="_blank" rel="noopener"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
                             <span class="hint">Prefer your own machine? It also runs on Node or Deno — <a href="https://github.com/Destinysmart/blink-paywall/tree/main/server#readme" target="_blank" rel="noopener">instructions</a>.</span></li>
-                        <li><b>Add your items</b>: drop a Markdown or HTML file into the server's <code>items/</code> folder with the title and price at the top, and push. The file name becomes the item. Prices live there, not here.</li>
-                        <li><b>Paste an item's URL</b> below — your server lists them on its home page.</li>
+                        <li><b>Connect it here</b> with its address and that password. Your items are then written and priced on this page and saved to your server.</li>
                     </ol>
-                    <label for="l402-url">Your item's URL</label>
+                    <label for="server-url">Server address</label>
+                    <input type="url" id="server-url" placeholder="https://blink-paywall-server.you.workers.dev" autocomplete="off" spellcheck="false">
+                    <label for="server-password">Password for saving items</label>
                     <div class="row">
-                        <input type="url" id="l402-url" placeholder="https://blink-paywall.you.workers.dev/content/ebook" autocomplete="off" spellcheck="false">
-                        <button class="btn narrow" id="check-l402" type="button">Check</button>
+                        <input type="password" id="server-password" placeholder="the ADMIN_PASSWORD you set when deploying" autocomplete="off">
+                        <button class="btn narrow" id="connect-server" type="button">Connect</button>
                     </div>
-                    <p id="l402-status"></p>
-                    <p class="hint">Your server mints the invoice and verifies the payment — the content never reaches the browser unpaid.</p>
+                    <p id="server-status"></p>
+                    <p class="hint">Both stay in this browser only and are sent to nothing but your own server.</p>
+                    <div id="server-items" hidden>
+                        <label>Your items on the server <span class="hint" style="display:inline">(click one to edit it, or fill in a new one below)</span></label>
+                        <div class="chips" id="server-items-list"></div>
+                    </div>
+                    <details>
+                        <summary>Manage items as files instead</summary>
+                        <p class="hint">Drop a Markdown or HTML file into the server's <code>items/</code> folder with the title and price at the top, and push; the file name becomes the item. Then paste its URL here:</p>
+                        <label for="l402-url">Item URL</label>
+                        <div class="row">
+                            <input type="url" id="l402-url" placeholder="https://blink-paywall-server.you.workers.dev/content/ebook" autocomplete="off" spellcheck="false">
+                            <button class="btn narrow" id="check-l402" type="button">Check</button>
+                        </div>
+                        <p id="l402-status"></p>
+                    </details>
+                </div>
+
+                <div class="step numbered" id="hard-unlock-step">
+                    <h2><span class="n"></span>What does a payment unlock?</h2>
+                    <div class="cards">
+                        <label class="type-card selected"><input type="radio" name="hard-type" value="article" checked>
+                            <b>An article or any text</b><span>written here, delivered by your server only after payment</span></label>
+                        <label class="type-card"><input type="radio" name="hard-type" value="link">
+                            <b>A link</b><span>download, thank-you page, booking</span></label>
+                    </div>
+                    <div id="field-hard-article">
+                        <label for="hard-markdown">The paid part (Markdown or HTML)</label>
+                        <textarea id="hard-markdown" rows="10" placeholder="## Part two&#10;&#10;The rest of the article..."></textarea>
+                        <p class="hint">Only the part behind the paywall goes here. The free intro stays on your own page, above the snippet.</p>
+                    </div>
+                    <div id="field-hard-link" hidden>
+                        <label for="hard-redirect">Send the visitor to</label>
+                        <input type="url" id="hard-redirect" placeholder="https://example.com/download">
+                    </div>
                 </div>
 
                 <div class="step numbered" id="username-step">
@@ -277,6 +320,16 @@
                             </select>
                         </div>
                     </div>
+                </div>
+
+                <div class="step numbered" id="save-step">
+                    <h2><span class="n"></span>Save to your server</h2>
+                    <p class="hint">Saves the item <code id="save-id">…</code> with the title and price above. Connect your server first.</p>
+                    <div class="row">
+                        <button class="btn" id="save-item" type="button">Save item</button>
+                        <button class="btn secondary narrow" id="delete-item" type="button" hidden>Delete</button>
+                    </div>
+                    <p id="save-status"></p>
                 </div>
 
                 <div class="step">
