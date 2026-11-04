@@ -107,6 +107,9 @@ export function decodeInvoice(invoice) {
     if (separator < 1) throw new Error('Invoice has no bech32 separator');
     const hrp = lower.slice(0, separator);
     const dataPart = lower.slice(separator + 1);
+    // Prefix first: "not an invoice at all" is the more useful complaint.
+    const parsedHrp = parseHrp(hrp);
+    if (!parsedHrp) throw new Error('Not a Lightning invoice (unexpected prefix)');
     // timestamp (7) + tagged fields + signature (104 = 65 bytes) + checksum (6)
     if (dataPart.length < 7 + SIGNATURE_LENGTH + 6) throw new Error('Invoice data too short');
 
@@ -117,9 +120,6 @@ export function decodeInvoice(invoice) {
         data.push(value);
     }
     if (!verifyChecksum(hrp, data)) throw new Error('Invoice checksum does not match');
-
-    const parsedHrp = parseHrp(hrp);
-    if (!parsedHrp) throw new Error('Not a Lightning invoice (unexpected prefix)');
 
     const payload = data.slice(0, -(SIGNATURE_LENGTH + 6));
     const result = {
