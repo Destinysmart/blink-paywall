@@ -533,9 +533,39 @@
         return attributes;
     }
 
+    // ── Plain text in, HTML out ──
+    //
+    // Nobody should have to write <p> tags. Text typed into the content box is
+    // formatted: blank line = new paragraph, plus the small Markdown set the
+    // server understands (the converter is shared with it, loaded as a module
+    // by index.html). Anything that already looks like HTML passes through.
+
+    function looksLikeHtml(text) {
+        return /^\s*<[a-zA-Z!/]/.test(text);
+    }
+
+    function plainToHtml(text) {
+        return String(text)
+            .replace(/\r\n?/g, '\n')
+            .trim()
+            .split(/\n{2,}/)
+            .map(function (block) {
+                return '<p>' + escapeText(block).replace(/\n/g, '<br>') + '</p>';
+            })
+            .join('\n');
+    }
+
+    function toHtml(text) {
+        var source = String(text || '');
+        if (!source.trim()) return '';
+        if (looksLikeHtml(source)) return source.trim();
+        if (window.BlinkMarkdown) return window.BlinkMarkdown.markdownToHtml(source);
+        return plainToHtml(source);
+    }
+
     function templateInner(config) {
         if (config.type === 'content') {
-            return config.contentHtml.trim() || '<p>Your locked content here.</p>';
+            return toHtml(config.contentHtml) || '<p>Your locked content here.</p>';
         }
         if (config.type === 'secret') {
             return (
@@ -568,7 +598,7 @@
         if (inner) {
             lines.push('<div ' + attributes + '>');
             lines.push('  <template>');
-            lines.push('    ' + inner);
+            lines.push('    ' + inner.replace(/\n/g, '\n    '));
             lines.push('  </template>');
             lines.push('</div>');
         } else {
@@ -710,6 +740,10 @@
             }, 1500);
         });
     });
+
+    // Re-render once the shared Markdown converter has loaded (module scripts
+    // run after this one), so restored content is formatted the same way.
+    document.addEventListener('blink:markdown-ready', update);
 
     $('reset-preview').addEventListener('click', function () {
         Object.keys(localStorage)
