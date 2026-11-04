@@ -23,7 +23,8 @@ import { createMacaroon, hexToBytes, verifyToken } from './macaroon.js';
 export const VERSION = '0.2.0';
 export const API_URL = 'https://api.blink.sv/graphql';
 export const LNURL_DOMAIN = 'blink.sv';
-export const WIDGET_URL = 'https://blinkbitcoin.github.io/blink-paywall/v1/blink-paywall.js';
+/** Default widget bundle for the demo page; override with the `widgetUrl` option / WIDGET_URL env. */
+export const WIDGET_URL = 'https://destinysmart.github.io/blink-paywall/v1/blink-paywall.js';
 
 /** Invoice expiry minutes per wallet currency (USD invoices peg a fiat amount, so short). */
 const EXPIRY_MINUTES = { BTC: 15, USD: 5 };
@@ -156,6 +157,7 @@ class BlinkApiError extends Error {
  * @param {number} [options.invoicesPerMinute]  per visitor IP; 0 disables the limiter (30)
  * @param {string} [options.contentPath]   URL prefix of the items ('/content/')
  * @param {Function} [options.fetch]       injectable for tests
+ * @param {string} [options.widgetUrl]     widget bundle the demo page loads (WIDGET_URL)
  * @param {Function} [options.now]         injectable clock (ms), for tests
  */
 export function createPaywall(options = {}) {
@@ -174,6 +176,7 @@ export function createPaywall(options = {}) {
     const contentPath = options.contentPath || '/content/';
     const fetchFn = options.fetch || globalThis.fetch;
     const now = options.now || (() => Date.now());
+    const widgetUrl = String(options.widgetUrl || WIDGET_URL);
 
     // ── Blink public API (no key) ────────────────────────────────────────────
 
@@ -467,8 +470,8 @@ export function createPaywall(options = {}) {
 <body>
 <h1>Blink Paywall server — paying <b>@${escapeHtml(username)}</b></h1>
 <p class="muted">Your deployment works. Each item below is served only after a verified Lightning payment. Put the script tag once on your own page, then paste an item's embed line wherever the paywall should appear.</p>
-<p><code>${escapeHtml(`<script defer src="${WIDGET_URL}"></script>`)}</code></p>
-<script defer src="${WIDGET_URL}"></script>
+<p><code>${escapeHtml(`<script defer src="${widgetUrl}"></script>`)}</code></p>
+<script defer src="${escapeHtml(widgetUrl)}"></script>
 ${sections}
 </body>
 </html>

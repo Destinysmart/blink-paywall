@@ -7,6 +7,7 @@
  *   TOKEN_TTL_DAYS       how long a paid unlock stays valid (default 30)
  *   INVOICES_PER_MINUTE  per visitor IP, 0 disables (default 30)
  *   CONTENT_FILE         path to content.json (default: the one next to this file)
+ *   WIDGET_URL           widget bundle the demo page loads (default: this repo's Pages build)
  *   PORT                 default 4402
  */
 
@@ -40,6 +41,7 @@ try {
         content: JSON.parse(await readFile(contentUrl, 'utf8')),
         tokenTtlDays: process.env.TOKEN_TTL_DAYS,
         invoicesPerMinute: process.env.INVOICES_PER_MINUTE,
+        widgetUrl: process.env.WIDGET_URL,
     });
 } catch (error) {
     console.error(error.message);

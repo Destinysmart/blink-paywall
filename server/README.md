@@ -14,7 +14,7 @@ Works for custodial Blink accounts and self-custodial (Spark) ones alike.
 
 ### Cloudflare Workers — free, about two minutes
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/blinkbitcoin/blink-paywall/tree/main/server)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Destinysmart/blink-paywall/tree/main/server)
 
 The setup page asks for two values:
 
@@ -79,12 +79,12 @@ Each key is an item id (letters, numbers, `-`, `_`); its URL is
 ## Embed
 
 ```html
-<script defer src="https://blinkbitcoin.github.io/blink-paywall/v1/blink-paywall.js"></script>
+<script defer src="https://destinysmart.github.io/blink-paywall/v1/blink-paywall.js"></script>
 <div data-blink-paywall data-l402="https://your-server/content/ebook"
      data-title="Unlock the full article"></div>
 ```
 
-The [generator](https://blinkbitcoin.github.io/blink-paywall/) builds this
+The [generator](https://destinysmart.github.io/blink-paywall/) builds this
 for you and has a **Check** button that verifies the URL answers with a valid
 L402 challenge.
 
@@ -98,6 +98,7 @@ L402 challenge.
 | `INVOICES_PER_MINUTE` | `30` | unpaid invoices one visitor IP may request per minute; `0` disables |
 | `PORT` | `4402` | Node / Deno |
 | `CONTENT_FILE` | `./content.json` | Node / Deno: another content file |
+| `WIDGET_URL` | this repo's Pages build | widget bundle the demo page at `/` loads |
 
 ## Endpoints
 

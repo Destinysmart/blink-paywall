@@ -5,7 +5,7 @@ owner-defined action** behind a payment to your [Blink](https://get.blink.sv)
 account. No API key, no account signup for visitors.
 
 Generator (for non-technical users):
-**https://blinkbitcoin.github.io/blink-paywall/**
+**https://destinysmart.github.io/blink-paywall/**
 
 Two ways to run it:
 
@@ -17,7 +17,7 @@ Two ways to run it:
   browser. Honest-audience grade: see [Security model](#security-model-read-this).
 
 ```html
-<script defer src="https://blinkbitcoin.github.io/blink-paywall/v1/blink-paywall.js"></script>
+<script defer src="https://destinysmart.github.io/blink-paywall/v1/blink-paywall.js"></script>
 
 <!-- hard: your server holds the content -->
 <div data-blink-paywall data-l402="https://paywall.you.workers.dev/content/ebook"

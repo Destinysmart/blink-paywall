@@ -12,6 +12,8 @@
         // How long a paid unlock stays valid on the visitor's device.
         "TOKEN_TTL_DAYS": "30",
         // Unpaid invoices one visitor IP may request per minute (0 = unlimited).
-        "INVOICES_PER_MINUTE": "30"
+        "INVOICES_PER_MINUTE": "30",
+        // Widget bundle the demo page loads (leave as is unless you host the generator yourself).
+        "WIDGET_URL": "https://destinysmart.github.io/blink-paywall/v1/blink-paywall.js"
     }
 }

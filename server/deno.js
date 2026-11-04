@@ -24,6 +24,7 @@ const paywall = createPaywall({
     content: JSON.parse(await Deno.readTextFile(contentFile)),
     tokenTtlDays: Deno.env.get('TOKEN_TTL_DAYS'),
     invoicesPerMinute: Deno.env.get('INVOICES_PER_MINUTE'),
+    widgetUrl: Deno.env.get('WIDGET_URL'),
 });
 
 Deno.serve({ port: PORT }, (request, info) =>

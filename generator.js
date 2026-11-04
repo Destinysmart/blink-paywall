@@ -9,9 +9,10 @@
 (function () {
     'use strict';
 
-    // Published widget URL. paywall.blink.sv is reserved but not wired up yet;
-    // switch this (and the README) over once the DNS record + CNAME land.
-    var SCRIPT_URL = 'https://blinkbitcoin.github.io/blink-paywall/v1/blink-paywall.js';
+    // Published widget URL: the bundle ships next to this page, so whatever
+    // host serves the generator (a GitHub Pages site today, paywall.blink.sv
+    // once that DNS record lands) also serves the widget — no constant to swap.
+    var SCRIPT_URL = new URL('v1/blink-paywall.js', window.location.href).href;
     var API_URL = 'https://api.blink.sv/graphql';
 
     var $ = function (id) {

@@ -42,13 +42,16 @@ Build: esbuild → `v1/blink-paywall.js` (IIFE, global `BlinkPaywall`, `.css`
 imported as text). `/v1/` is gitignored; CI builds it on deploy, so the
 published URL is `<pages-origin>/v1/blink-paywall.js`. `server/` has no build.
 
-Hosting: GitHub Pages from `main` via Actions, currently
-`https://blinkbitcoin.github.io/blink-paywall/`. `paywall.blink.sv` is the
-intended domain: adding it = DNS record + a `CNAME` file + swapping the URL
-in `generator.js` (`SCRIPT_URL`), `README.md`, `src/index.js` (doc comment),
-`server/paywall.js` (`WIDGET_URL`), `server/README.md` and `index.html`
-(canonical + og:url). The "Deploy to Cloudflare" links in `index.html` and
-`server/README.md` point at `blinkbitcoin/blink-paywall/tree/main/server`.
+Hosting: GitHub Pages from `main` via Actions. This copy is Destiny's
+continuation of Kemal's `blinkbitcoin/blink-paywall` and is served from
+`https://destinysmart.github.io/blink-paywall/`; the plan is to propose it to
+Blink once tested, so the home is a single search-and-replace away:
+`generator.js` derives the widget URL from the page's own origin (nothing to
+swap there), and these carry the repo / Pages host literally — `index.html`
+(canonical, og:url, repo links, Deploy to Cloudflare), `README.md`,
+`server/README.md`, `server/paywall.js` (`WIDGET_URL` default, overridable
+by the `WIDGET_URL` env) and `server/wrangler.jsonc`. `paywall.blink.sv` is
+the intended final domain: DNS record + a `CNAME` file + that replace.
 
 ## Payment flow (high level)
 
