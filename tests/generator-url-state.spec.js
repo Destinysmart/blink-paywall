@@ -27,6 +27,14 @@ function loadGenerator(hash = '') {
 
 const $ = (id) => document.getElementById(id);
 const hashParams = () => new URLSearchParams(window.location.hash.replace(/^#/, ''));
+const checked = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
+
+/** Flip the mode radio the way a click would. */
+function chooseMode(value) {
+    const radio = document.querySelector(`input[name="mode"][value="${value}"]`);
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+}
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -68,7 +76,8 @@ describe('restoring from the hash', () => {
         expect($('unlock-class').value).toBe('supporter');
         expect($('webhook').value).toBe('https://hooks.example/z');
         expect($('secret-text').value).toBe('COUPON-2024');
-        expect(document.querySelector('input[name="unlock-type"]:checked').value).toBe('secret');
+        expect(checked('mode')).toBe('soft');
+        expect(checked('unlock-type')).toBe('secret');
     });
 
     it('feeds the restored values into the snippet', () => {
@@ -84,7 +93,8 @@ describe('restoring from the hash', () => {
     it('treats a link without a type as the soft setup it was made as', () => {
         // Links saved before hard mode became the default carry no `type`.
         loadGenerator('#username=alice&amount=2500');
-        expect(document.querySelector('input[name="unlock-type"]:checked').value).toBe('content');
+        expect(checked('mode')).toBe('soft');
+        expect(checked('unlock-type')).toBe('content');
         expect($('code').textContent).toContain('data-username="alice"');
     });
 
@@ -97,7 +107,7 @@ describe('restoring from the hash', () => {
 
     it('ignores an unknown unlock type and keeps the default', () => {
         loadGenerator('#type=not-a-type');
-        expect(document.querySelector('input[name="unlock-type"]:checked').value).toBe('l402');
+        expect(checked('mode')).toBe('hard');
     });
 
     it('ignores unknown params without throwing', () => {
@@ -109,7 +119,7 @@ describe('restoring from the hash', () => {
         loadGenerator('');
         expect($('username').value).toBe('');
         expect($('amount').value).toBe('1000');
-        expect(document.querySelector('input[name="unlock-type"]:checked').value).toBe('l402');
+        expect(checked('mode')).toBe('hard');
     });
 });
 
@@ -144,6 +154,7 @@ describe('writing the hash', () => {
 
     it('records a non-default unlock type', () => {
         loadGenerator('');
+        chooseMode('soft');
         const radio = document.querySelector('input[name="unlock-type"][value="redirect"]');
         radio.checked = true;
         radio.dispatchEvent(new Event('change', { bubbles: true }));
@@ -181,18 +192,30 @@ describe('writing the hash', () => {
 });
 
 describe('hard mode', () => {
-    it('is the default, hides the username and price steps, and emits data-l402', () => {
+    it('is the default: shows the server step only, and emits data-l402', () => {
         loadGenerator('');
+        expect($('server-step').hidden).toBe(false);
         expect($('username-step').hidden).toBe(true);
+        expect($('unlock-step').hidden).toBe(true);
         expect($('price-step').hidden).toBe(true);
         expect($('code').textContent).toContain('data-l402="');
         expect($('code').textContent).not.toContain('data-username');
+    });
 
-        const radio = document.querySelector('input[name="unlock-type"][value="content"]');
-        radio.checked = true;
-        radio.dispatchEvent(new Event('change', { bubbles: true }));
+    it('switching to the soft path swaps in its own steps, and back', () => {
+        loadGenerator('');
+        chooseMode('soft');
+        expect($('server-step').hidden).toBe(true);
         expect($('username-step').hidden).toBe(false);
+        expect($('unlock-step').hidden).toBe(false);
         expect($('price-step').hidden).toBe(false);
+        expect($('code').textContent).toContain('data-username');
+        expect($('code').textContent).not.toContain('data-l402');
+
+        chooseMode('hard');
+        expect($('server-step').hidden).toBe(false);
+        expect($('username-step').hidden).toBe(true);
+        expect($('code').textContent).toContain('data-l402="');
     });
 
     it('checks an endpoint and reports the price from its L402 challenge', async () => {
