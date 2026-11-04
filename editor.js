@@ -27,17 +27,23 @@
 
     /** Rewrite a node tree in place so only whitelisted markup remains. */
     function sanitizeNode(node) {
-        var children = Array.prototype.slice.call(node.childNodes);
-        children.forEach(function (child) {
-            if (child.nodeType === 3) return; // text
+        var child = node.firstChild;
+        while (child) {
+            var next = child.nextSibling;
+            if (child.nodeType === 3) {
+                child = next;
+                continue;
+            }
             if (child.nodeType !== 1) {
                 node.removeChild(child);
-                return;
+                child = next;
+                continue;
             }
             var tag = child.tagName.toLowerCase();
             if (DROP_WITH_CONTENT[tag]) {
                 node.removeChild(child);
-                return;
+                child = next;
+                continue;
             }
             if (RENAME[tag]) {
                 var renamed = document.createElement(RENAME[tag]);
@@ -46,26 +52,23 @@
                 child = renamed;
                 tag = RENAME[tag];
             }
-            if (!ALLOWED[tag]) {
-                // Unwrap: keep the content, drop the element.
+            var href = tag === 'a' ? safeHref(child.getAttribute('href')) : null;
+            if (!ALLOWED[tag] || (tag === 'a' && !href)) {
+                // Unwrap: keep the content, drop the element — and go on with
+                // what was inside it, which is now in this node.
+                var first = child.firstChild;
                 while (child.firstChild) node.insertBefore(child.firstChild, child);
                 node.removeChild(child);
-                return;
+                child = first || next;
+                continue;
             }
-            var href = tag === 'a' ? safeHref(child.getAttribute('href')) : null;
             Array.prototype.slice.call(child.attributes).forEach(function (attribute) {
                 child.removeAttribute(attribute.name);
             });
-            if (tag === 'a') {
-                if (!href) {
-                    while (child.firstChild) node.insertBefore(child.firstChild, child);
-                    node.removeChild(child);
-                    return;
-                }
-                child.setAttribute('href', href);
-            }
+            if (tag === 'a') child.setAttribute('href', href);
             sanitizeNode(child);
-        });
+            child = next;
+        }
     }
 
     function sanitizeHtml(html) {
@@ -152,7 +155,7 @@
 
         var area = document.createElement('div');
         area.className = 'editor-area';
-        area.contentEditable = 'true';
+        area.setAttribute('contenteditable', 'true');
         area.setAttribute('role', 'textbox');
         area.setAttribute('aria-multiline', 'true');
         if (textarea.placeholder) area.setAttribute('data-placeholder', textarea.placeholder.split('\n')[0]);

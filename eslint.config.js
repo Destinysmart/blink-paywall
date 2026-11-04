@@ -30,7 +30,7 @@ export default [
         },
     },
     {
-        files: ['generator.js'],
+        files: ['generator.js', 'editor.js'],
         languageOptions: {
             ecmaVersion: 2022,
             sourceType: 'script',
