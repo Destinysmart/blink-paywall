@@ -19,6 +19,12 @@
         return document.getElementById(id);
     };
 
+    // Deferred work (debounced URL sync, preview mount, server replies) must
+    // not touch a form that is no longer in the document.
+    function mounted() {
+        return Boolean(document.getElementById('code'));
+    }
+
     var state = { usernameOk: false, previewInstance: null, server: null };
 
     // The connected server (address + password) lives in this browser only.
@@ -264,6 +270,7 @@
     }
 
     function renderServerItems() {
+        if (!mounted()) return;
         var list = $('server-items-list');
         list.innerHTML = '';
         var items = (state.server && state.server.items) || [];
@@ -474,6 +481,7 @@
     }
 
     function syncHash() {
+        if (!mounted()) return;
         var hash = buildHash();
         var url = window.location.pathname + window.location.search + (hash ? '#' + hash : '');
         try {
@@ -610,7 +618,7 @@
     // ── Live preview ──
 
     function renderPreview(config) {
-        if (!window.BlinkPaywall) return;
+        if (!window.BlinkPaywall || !mounted()) return;
         if (state.previewInstance) state.previewInstance.destroy();
         state.previewInstance = null;
         var host = $('preview');
@@ -658,6 +666,7 @@
     var previewTimer = null;
 
     function update() {
+        if (!mounted()) return;
         var config = readForm();
         $('code').textContent = buildSnippet(config);
         clearTimeout(hashTimer);

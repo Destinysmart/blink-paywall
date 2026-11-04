@@ -50,6 +50,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
     document.body.innerHTML = '';
