@@ -48,7 +48,37 @@ runtime-specific code; `node.mjs`, `worker.js` and `deno.js` are 40-line
 adapters. Vercel, Netlify, Bun, Fastly: wire `createPaywall(...).handle` to
 the platform's fetch handler.
 
-## Your content — `content.json`
+## Your content
+
+### The easy way — one file per item
+
+Drop a Markdown (or HTML) file into `items/`, with the title and price at the
+top, and push. No JSON.
+
+```markdown
+---
+title: Read the rest of this story
+price: 500
+currency: NGN
+---
+## Part two
+
+The paid part of the article, in Markdown. Everything above the first
+paragraph is the header; everything below is what a visitor gets after paying.
+```
+
+The file name is the item's id: `items/my-story.md` is served at
+`/content/my-story`. A `redirect: https://…` line in the header makes it a link
+item instead (signed download, booking page), and the body can be left out.
+`items/example-story.md` is a sample — delete it when you add your own.
+
+Markdown support covers what articles need: headings, paragraphs, bold,
+italic, links, images, lists, quotes, code, and raw HTML lines passed through
+untouched. On Cloudflare, `npm run deploy` compiles the folder into
+`content.generated.json` before deploying (a Worker cannot read files); on
+Node and Deno the folder is read at boot.
+
+### Or `content.json`
 
 ```json
 {
@@ -67,14 +97,15 @@ the platform's fetch handler.
 
 | Field | |
 |---|---|
-| `title` | shown on the invoice (`Unlock: <title>`) and the demo page |
+| `title` | shown on the invoice (`Unlock: <title>`) and the demo page; defaults to the id |
 | `price` + `currency` | `sats` (default) or any Blink display currency (`USD`, `EUR`, `NGN`, …). Fiat prices are quoted at Blink's realtime rate when the invoice is minted. |
 | `html` | revealed in place of the paywall card after payment |
 | `redirect` | sends the paying visitor to a URL instead (signed download link, Calendly, …) |
 | `response` | any other JSON — handed to the widget's `onUnlock` / `blink:unlocked` |
 
 Each key is an item id (letters, numbers, `-`, `_`); its URL is
-`/content/<id>`. A broken file fails at boot, not at the first paying visitor.
+`/content/<id>`. An item file with the same id wins over the JSON entry. A
+broken file fails at boot (or at deploy), not at the first paying visitor.
 
 ## Embed
 

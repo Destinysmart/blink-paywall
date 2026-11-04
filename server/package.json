@@ -7,7 +7,8 @@
     "license": "AGPL-3.0-only",
     "scripts": {
         "start": "node node.mjs",
-        "dev": "npx wrangler dev",
-        "deploy": "npx wrangler deploy"
+        "build": "node build-content.mjs",
+        "dev": "node build-content.mjs && npx wrangler dev",
+        "deploy": "node build-content.mjs && npx wrangler deploy"
     }
 }
