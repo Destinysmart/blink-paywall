@@ -23,6 +23,10 @@ src/actions.js        registry: webhook, unlockClass, reveal, redirect (redirect
 src/storage.js        receipts / pending invoices / L402 tokens; ALL guarded try/catch
 src/ui.js             shadow-DOM card; reports intent via handlers (onUnlock/onRetry/onPreimage)
 src/qr.js             vendored qrcode-generator 1.4.4 (MIT) — do not edit, eslint-ignored
+editor.js             rich-text editor (headings, bold, italic, links, lists, quotes) over the two
+                      content textareas; zero deps; output sanitized to a small whitelist (p, h2, h3,
+                      strong, em, a[href], ul, ol, li, blockquote, br). The textarea stays the source
+                      of truth; `editor:set` on it tells the editor to re-read.
 index.html+generator.js  generator page, served raw (no build); step 1 picks where the content
                       lives (hard server / soft page) and each path shows only its own steps. Hard
                       path: connect to the owner's server (address + ADMIN_PASSWORD, kept in

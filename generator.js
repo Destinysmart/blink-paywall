@@ -174,6 +174,32 @@
             'The server answered ' + response.status + '. Check the URL \u2014 items live at /content/<id>.';
     }
 
+    // ── The content editors ──
+    //
+    // editor.js turns the two content textareas into rich-text editors with a
+    // toolbar; the textareas keep the clean HTML everything else reads. When
+    // the page itself changes a textarea (restoring a link, loading a server
+    // item) it tells the editor to catch up.
+
+    var EDITOR_IDS = ['content-html', 'hard-markdown'];
+
+    function attachEditors() {
+        if (!window.BlinkEditor) return;
+        EDITOR_IDS.forEach(function (id) {
+            window.BlinkEditor.attach($(id));
+        });
+    }
+
+    function refreshEditors() {
+        EDITOR_IDS.forEach(function (id) {
+            var textarea = $(id);
+            // Content written before the editor existed (a saved link) may be
+            // plain text or Markdown: format it once so the editor can show it.
+            if (textarea.value && !looksLikeHtml(textarea.value)) textarea.value = toHtml(textarea.value);
+            textarea.dispatchEvent(new Event('editor:set'));
+        });
+    }
+
     // ── Hard mode: your server ──
     //
     // The generator is a static page; the owner's paywall server has a small
@@ -305,10 +331,11 @@
         if ($('currency').value !== item.currency) $('currency').value = 'sats';
         var kind = item.kind === 'link' ? 'link' : 'article';
         document.querySelector('input[name="hard-type"][value="' + kind + '"]').checked = true;
-        $('hard-markdown').value = item.markdown || item.html || '';
+        $('hard-markdown').value = item.html || item.markdown || '';
         $('hard-redirect').value = item.redirect || '';
         $('l402-url').value = item.url;
         $('save-status').textContent = '';
+        refreshEditors();
         update();
     }
 
@@ -326,8 +353,13 @@
             price: Number($('amount').value),
             currency: $('currency').value,
         };
-        if (kind === 'link') body.redirect = $('hard-redirect').value.trim();
-        else body.markdown = $('hard-markdown').value;
+        if (kind === 'link') {
+            body.redirect = $('hard-redirect').value.trim();
+        } else if (looksLikeHtml($('hard-markdown').value)) {
+            body.html = $('hard-markdown').value;
+        } else {
+            body.markdown = $('hard-markdown').value;
+        }
         status.className = 'hint';
         status.textContent = 'Saving\u2026';
         try {
@@ -357,6 +389,7 @@
             $('l402-url').value = '';
             $('hard-markdown').value = '';
             $('hard-redirect').value = '';
+            refreshEditors();
             await refreshServerItems();
             status.className = 'hint';
             status.textContent = 'Deleted ' + id + ' from the server.';
@@ -750,10 +783,6 @@
         });
     });
 
-    // Re-render once the shared Markdown converter has loaded (module scripts
-    // run after this one), so restored content is formatted the same way.
-    document.addEventListener('blink:markdown-ready', update);
-
     $('reset-preview').addEventListener('click', function () {
         Object.keys(localStorage)
             .filter(function (key) {
@@ -765,9 +794,12 @@
         update();
     });
 
+    attachEditors();
+
     // Restore a saved setup before the first render. A username in the link is
     // validated as if it had been typed, so the preview mounts ready to pay.
     var restored = applyHash(window.location.hash);
+    refreshEditors();
     var remembered = recallServer();
     if (remembered && remembered.origin && remembered.password) {
         $('server-url').value = remembered.origin;
