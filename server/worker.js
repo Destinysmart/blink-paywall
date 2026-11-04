@@ -5,11 +5,17 @@
  *   npx wrangler deploy
  *
  * BLINK_USERNAME / TOKEN_TTL_DAYS / INVOICES_PER_MINUTE / WIDGET_URL are plain
- * vars in wrangler.jsonc; content comes from content.json next to this file.
+ * vars in wrangler.jsonc. Content comes from content.json plus
+ * content.generated.json, which `npm run deploy` builds from the items/ folder
+ * (a Worker cannot read files at runtime). An item file wins over a JSON entry
+ * with the same id.
  */
 
-import content from './content.json';
+import base from './content.json';
+import generated from './content.generated.json';
 import { createPaywall } from './paywall.js';
+
+const content = { ...base, ...generated };
 
 let paywall = null;
 let configKey = '';

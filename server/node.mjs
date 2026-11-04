@@ -6,23 +6,23 @@
  *   L402_ROOT_KEY        64 hex chars; random per boot if unset (old tokens die on restart)
  *   TOKEN_TTL_DAYS       how long a paid unlock stays valid (default 30)
  *   INVOICES_PER_MINUTE  per visitor IP, 0 disables (default 30)
- *   CONTENT_FILE         path to content.json (default: the one next to this file)
+ *   CONTENT_FILE         path to content.json (default: the one next to this file);
+ *                        files in the items/ folder next to it are added on top
  *   WIDGET_URL           widget bundle the demo page loads (default: this repo's Pages build)
  *   PORT                 default 4402
  */
 
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { loadContent } from './load-content.mjs';
 import { bytesToHex } from './macaroon.js';
 import { createPaywall } from './paywall.js';
 
 const PORT = Number(process.env.PORT || 4402);
 
-const contentUrl = process.env.CONTENT_FILE
-    ? pathToFileURL(path.resolve(process.env.CONTENT_FILE))
-    : new URL('./content.json', import.meta.url);
+const serverDir = path.dirname(fileURLToPath(import.meta.url));
+const contentFile = process.env.CONTENT_FILE ? path.resolve(process.env.CONTENT_FILE) : undefined;
 
 let rootKey = process.env.L402_ROOT_KEY;
 if (!rootKey) {
@@ -38,7 +38,7 @@ try {
     paywall = createPaywall({
         username: process.env.BLINK_USERNAME,
         rootKey,
-        content: JSON.parse(await readFile(contentUrl, 'utf8')),
+        content: await loadContent(serverDir, { contentFile }),
         tokenTtlDays: process.env.TOKEN_TTL_DAYS,
         invoicesPerMinute: process.env.INVOICES_PER_MINUTE,
         widgetUrl: process.env.WIDGET_URL,

@@ -36,6 +36,10 @@ server/node.mjs       node:http adapter        BLINK_USERNAME=you node server/no
 server/worker.js      Cloudflare Workers entry  (content.json imported as a module)
 server/deno.js        Deno / Deno Deploy entry
 server/content.json   the owner's items: { id: { title, price, currency, html | redirect | response } }
+server/items/         one .md / .html per item, header (title/price/currency/redirect) + body; the
+                      easy path. items.js parses them, markdown.js converts; node/deno read the
+                      folder at boot, Workers get content.generated.json from build-content.mjs
+                      (run by `npm run deploy`). An item file wins over a content.json entry.
 server/wrangler.jsonc, package.json, .dev.vars.example   what "Deploy to Cloudflare" reads
 ```
 
@@ -88,9 +92,12 @@ Everything is called unauthenticated. The server needs no API key either
 - `paywall.js` must not import concrete sources; `sources/*` must not touch
   the DOM; `ui.js` must not do payments; `storage.js` never throws.
 - `server/` is **self-contained**: no imports from `src/` (Deploy to
-  Cloudflare treats that folder as a repository root), and `paywall.js` stays
-  runtime-neutral — anything `node:`/`Deno.`/Workers-specific lives in the
-  adapters.
+  Cloudflare treats that folder as a repository root), and `paywall.js`,
+  `items.js`, `markdown.js` stay runtime-neutral — anything
+  `node:`/`Deno.`/Workers-specific lives in the adapters and `load-content.mjs`.
+- `content.generated.json` is a build artifact committed as `{}` so
+  `worker.js`'s import always resolves; `npm run deploy` rewrites it. Never
+  hand-edit it.
 - Pollers are bounded (invoice expiry + grace) and cancellable
   (AbortController). Never ship an unbounded poll loop.
 - Locked content stays inert: it lives in `<template>` (or server-side in
