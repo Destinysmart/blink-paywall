@@ -186,7 +186,9 @@
         try {
             if (server) localStorage.setItem(SERVER_KEY, JSON.stringify(server));
             else localStorage.removeItem(SERVER_KEY);
-        } catch {}
+        } catch {
+            // storage unavailable (private mode): the connection just is not remembered
+        }
     }
 
     function recallServer() {
@@ -205,7 +207,9 @@
         var data = null;
         try {
             data = await response.json();
-        } catch {}
+        } catch {
+            // not JSON (a proxy error page, say): fall through to the status check
+        }
         if (!response.ok) {
             var reason = (data && data.error) || 'the server answered ' + response.status;
             if (response.status === 401) reason = 'Wrong password.';

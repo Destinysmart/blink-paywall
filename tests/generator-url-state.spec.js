@@ -198,7 +198,7 @@ describe('hard mode', () => {
         expect($('server-step').hidden).toBe(false);
         expect($('username-step').hidden).toBe(true);
         expect($('unlock-step').hidden).toBe(true);
-        expect($('price-step').hidden).toBe(true);
+        expect($('price-step').hidden).toBe(false); // the price is set here and saved to the server
         expect($('code').textContent).toContain('data-l402="');
         expect($('code').textContent).not.toContain('data-username');
     });
