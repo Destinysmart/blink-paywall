@@ -16,12 +16,17 @@ import { dirname, resolve } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(resolve(__dirname, '../index.html'), 'utf8');
 const generatorSrc = readFileSync(resolve(__dirname, '../generator.js'), 'utf8');
+const editorSrc = readFileSync(resolve(__dirname, '../editor.js'), 'utf8');
 
-/** Load the page with an optional starting hash and run the generator on it. */
-function loadGenerator(hash = '') {
+/**
+ * Load the page with an optional starting hash and run the generator on it.
+ * `withEditor` also loads editor.js first, as index.html does.
+ */
+function loadGenerator(hash = '', { withEditor = false } = {}) {
     const body = html.replace(/^[\s\S]*<body>/, '').replace(/<\/body>[\s\S]*$/, '');
     document.body.innerHTML = body;
     window.location.hash = hash;
+    if (withEditor) new Function(editorSrc)();
     new Function(generatorSrc)();
 }
 
@@ -56,6 +61,7 @@ afterEach(() => {
     document.body.innerHTML = '';
     window.location.hash = '';
     localStorage.clear();
+    delete window.BlinkEditor;
 });
 
 describe('restoring from the hash', () => {
@@ -334,7 +340,7 @@ describe('hard mode: your server', () => {
         expect($('item-id').value).toBe('ebook');
         expect($('title').value).toBe('The Full Article');
         expect($('amount').value).toBe('210');
-        expect($('hard-markdown').value).toBe('## Part two');
+        expect($('hard-markdown').value).toBe('<h2>Part two</h2>');
         expect($('l402-url').value).toBe(`${SERVER}/content/ebook`);
         expect($('code').textContent).toContain(`data-l402="${SERVER}/content/ebook"`);
         expect($('delete-item').hidden).toBe(false);
@@ -358,7 +364,7 @@ describe('hard mode: your server', () => {
         $('title').value = 'My story';
         $('amount').value = '500';
         $('currency').value = 'NGN';
-        $('hard-markdown').value = 'The paid part';
+        $('hard-markdown').value = '<p>The paid part</p>';
         $('title').dispatchEvent(new Event('input', { bubbles: true }));
         $('save-item').click();
         await vi.waitFor(() => expect($('save-status').textContent).toContain('Saved'));
@@ -369,11 +375,33 @@ describe('hard mode: your server', () => {
             title: 'My story',
             price: 500,
             currency: 'NGN',
-            markdown: 'The paid part',
+            html: '<p>The paid part</p>',
         });
         expect($('l402-url').value).toBe(`${SERVER}/content/my-story`);
         expect($('code').textContent).toContain(`data-l402="${SERVER}/content/my-story"`);
         expect($('server-items-list').querySelectorAll('.chip')).toHaveLength(2);
+    });
+
+    it('with the editor loaded, what is typed in it is what gets saved', async () => {
+        vi.useRealTimers();
+        const calls = fakeServer();
+        loadGenerator('', { withEditor: true });
+        await connect();
+        $('title').value = 'Edited story';
+        $('title').dispatchEvent(new Event('input', { bubbles: true }));
+        const area = $('hard-markdown-editor');
+        area.innerHTML = '<h1>Part two</h1><div>Paid <b>text</b> <a href="https://blink.sv">link</a></div>';
+        area.dispatchEvent(new Event('input', { bubbles: true }));
+        $('save-item').click();
+        await vi.waitFor(() => expect($('save-status').textContent).toContain('Saved'));
+        const save = calls.find((call) => call.init.method === 'PUT');
+        expect(JSON.parse(save.init.body).html).toBe(
+            '<h2>Part two</h2>\n<p>Paid <strong>text</strong> <a href="https://blink.sv">link</a></p>'
+        );
+        // Loading a server item shows its HTML in the editor.
+        $('server-items-list').querySelector('.chip').click();
+        expect($('content-html').value).toBe('');
+        expect($('hard-markdown-editor').innerHTML).toBe('<h2>Part two</h2>');
     });
 
     it('keeps the connection in this browser, never in the link', async () => {
@@ -411,6 +439,12 @@ describe('plain text in the content box', () => {
         } finally {
             delete window.BlinkMarkdown;
         }
+    });
+
+    it('formats content from an older link once, so the editor can show it', () => {
+        loadGenerator('#type=content&content=' + encodeURIComponent('First\n\nSecond'), { withEditor: true });
+        expect($('content-html').value).toBe('<p>First</p>\n<p>Second</p>');
+        expect($('content-html-editor').innerHTML).toBe('<p>First</p>\n<p>Second</p>');
     });
 
     it('passes HTML through untouched', () => {

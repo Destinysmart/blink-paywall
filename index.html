@@ -149,6 +149,31 @@
         .deploy-steps { padding-left: 20px; margin: 4px 0 8px; font-size: 14px; }
         .deploy-steps li { margin-bottom: 10px; }
         .deploy-steps code, .hint code { font-size: 13px; background: var(--surface-static); padding: 1px 5px; border-radius: 4px; }
+        /* The rich-text editor (editor.js) that replaces the content textareas. */
+        .editor { border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; margin-top: 4px; }
+        .editor:focus-within { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
+        .editor-toolbar {
+            display: flex; flex-wrap: wrap; gap: 4px; padding: 6px;
+            border-bottom: 1px solid var(--border); background: var(--surface-static);
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        }
+        .editor-tool {
+            font: inherit; font-size: 13px; padding: 4px 10px; border: 1px solid var(--border);
+            border-radius: 6px; background: #fff; cursor: pointer; color: var(--text-primary);
+        }
+        .editor-tool:hover { border-color: var(--primary); }
+        .editor-tool.bold { font-weight: 700; }
+        .editor-tool.italic { font-style: italic; }
+        .editor-area { min-height: 180px; padding: 12px 14px; font-size: 15px; line-height: 1.5; outline: none; }
+        .editor-area:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
+        .editor-area h2 { font-size: 20px; margin: 12px 0 6px; }
+        .editor-area h3 { font-size: 17px; margin: 10px 0 4px; }
+        .editor-area p { margin: 0 0 10px; }
+        .editor-area ul, .editor-area ol { margin: 0 0 10px; padding-left: 22px; }
+        .editor-area blockquote { border-left: 3px solid var(--border); margin: 8px 0; padding-left: 12px; color: var(--text-muted); }
+        .editor-area a { color: var(--primary); }
+        .editor-source { display: none; }
+
         .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
         .chip {
             border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px;
@@ -226,8 +251,8 @@
                     </div>
                     <div id="field-hard-article">
                         <label for="hard-markdown">The paid part</label>
-                        <textarea id="hard-markdown" rows="10" placeholder="The rest of the article...&#10;&#10;Leave a blank line to start a new paragraph."></textarea>
-                        <p class="hint">Write it like a normal text. A blank line starts a new paragraph; <code>**bold**</code>, <code># Heading</code> and links work too, and so does HTML if you have it. Only the part behind the paywall goes here — the free intro stays on your own page, above the snippet.</p>
+                        <textarea id="hard-markdown" rows="10" placeholder="The rest of the article..."></textarea>
+                        <p class="hint">Write it like in a document: the toolbar gives you headings, bold, italic, links and lists, and pasting from Word or Google Docs keeps the text and drops the clutter. Only the part behind the paywall goes here — the free intro stays on your own page, above the snippet.</p>
                     </div>
                     <div id="field-hard-link" hidden>
                         <label for="hard-redirect">Send the visitor to</label>
@@ -260,8 +285,8 @@
 
                     <div id="field-content">
                         <label for="content-html">The locked part</label>
-                        <textarea id="content-html" rows="8" placeholder="The rest of the article...&#10;&#10;Leave a blank line to start a new paragraph."></textarea>
-                        <p class="hint">Write it like a normal text. A blank line starts a new paragraph; <code>**bold**</code>, <code># Heading</code> and links work too, and so does HTML if you have it. Stays inert in the page until paid — it doesn't render or load before payment.</p>
+                        <textarea id="content-html" rows="8" placeholder="The rest of the article..."></textarea>
+                        <p class="hint">Write it like in a document: the toolbar gives you headings, bold, italic, links and lists, and pasting from Word or Google Docs keeps the text and drops the clutter. It stays inert in the page until paid — it doesn't render or load before payment.</p>
                     </div>
                     <div id="field-secret" hidden>
                         <label for="secret-text">Secret to reveal</label>
@@ -368,14 +393,7 @@
     </div>
 
     <script src="v1/blink-paywall.js"></script>
+    <script src="editor.js"></script>
     <script src="generator.js"></script>
-    <script type="module">
-        // The same converter the server uses, so what the preview shows is
-        // what a paying visitor gets. Soft mode formats on this page; hard
-        // mode sends the text and the server formats it.
-        import { markdownToHtml } from './server/markdown.js';
-        window.BlinkMarkdown = { markdownToHtml };
-        document.dispatchEvent(new Event('blink:markdown-ready'));
-    </script>
 </body>
 </html>
