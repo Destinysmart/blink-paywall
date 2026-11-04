@@ -1,0 +1,19 @@
+{
+    // Blink Paywall server on Cloudflare Workers.
+    // Deploy: npx wrangler secret put L402_ROOT_KEY && npx wrangler deploy
+    "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+    "name": "blink-paywall",
+    "main": "worker.js",
+    "compatibility_date": "2025-10-01",
+    "observability": { "enabled": true },
+    "vars": {
+        // Your Blink username — every payment lands in this account.
+        "BLINK_USERNAME": "satoshi",
+        // How long a paid unlock stays valid on the visitor's device.
+        "TOKEN_TTL_DAYS": "30",
+        // Unpaid invoices one visitor IP may request per minute (0 = unlimited).
+        "INVOICES_PER_MINUTE": "30",
+        // Widget bundle the demo page loads (leave as is unless you host the generator yourself).
+        "WIDGET_URL": "https://destinysmart.github.io/blink-paywall/v1/blink-paywall.js"
+    }
+}

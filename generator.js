@@ -2,15 +2,17 @@
  * Blink Paywall generator page.
  *
  * Everything is client-side: validate the username against Blink's public
- * API, build the embed snippet from the form, and keep a live preview
- * mounted with the locally served widget bundle.
+ * API (soft mode) or probe the owner's L402 endpoint (hard mode), build the
+ * embed snippet from the form, and keep a live preview mounted with the
+ * locally served widget bundle.
  */
 (function () {
     'use strict';
 
-    // Published widget URL. paywall.blink.sv is reserved but not wired up yet;
-    // switch this (and the README) over once the DNS record + CNAME land.
-    var SCRIPT_URL = 'https://blinkbitcoin.github.io/blink-paywall/v1/blink-paywall.js';
+    // Published widget URL: the bundle ships next to this page, so whatever
+    // host serves the generator (a GitHub Pages site today, paywall.blink.sv
+    // once that DNS record lands) also serves the widget — no constant to swap.
+    var SCRIPT_URL = new URL('v1/blink-paywall.js', window.location.href).href;
     var API_URL = 'https://api.blink.sv/graphql';
 
     var $ = function (id) {
@@ -94,6 +96,75 @@
         update();
     }
 
+    // ── Hard mode: endpoint check ──
+    //
+    // A real L402 server answers an unauthorized GET with 402 and a
+    // WWW-Authenticate challenge (the Blink Paywall server exposes that header
+    // to browsers). The invoice's amount tells the owner the price they set.
+
+    function parseL402Header(header) {
+        if (!header || !/^(l402|lsat)\s/i.test(header.trim())) return null;
+        var macaroon = header.match(/macaroon\s*=\s*"([^"]+)"/i);
+        var invoice = header.match(/invoice\s*=\s*"([^"]+)"/i);
+        var verify = header.match(/verify\s*=\s*"([^"]+)"/i);
+        if (!macaroon || !invoice) return null;
+        return { macaroon: macaroon[1], invoice: invoice[1], verify: verify ? verify[1] : null };
+    }
+
+    function invoiceSats(invoice) {
+        var match = /^ln(?:bcrt|bc|tbs|tb)(\d+)([munp]?)1/i.exec(String(invoice || ''));
+        if (!match) return null;
+        var msatsPerUnit = { '': 1e11, m: 1e8, u: 1e5, n: 100, p: 0.1 }[match[2].toLowerCase()];
+        return Math.round((Number(match[1]) * msatsPerUnit) / 1000);
+    }
+
+    async function checkEndpoint() {
+        var url = $('l402-url').value.trim();
+        var status = $('l402-status');
+        if (!url) {
+            status.className = 'error';
+            status.textContent = 'Paste the URL of an item on your paywall server.';
+            return;
+        }
+        status.className = 'hint';
+        status.textContent = 'Checking\u2026';
+        var response;
+        try {
+            response = await fetch(url, { headers: { Accept: 'application/json' } });
+        } catch {
+            status.className = 'error';
+            status.textContent =
+                'Could not reach that URL from the browser. Is the server running, and does it allow cross-origin requests? (The Blink Paywall server does.)';
+            return;
+        }
+        if (response.status === 402) {
+            var challenge = parseL402Header(response.headers.get('WWW-Authenticate'));
+            if (!challenge) {
+                status.className = 'error';
+                status.textContent =
+                    'The server answered 402 but without a readable L402 challenge. If it is not the Blink Paywall server, make sure it exposes the WWW-Authenticate header to browsers.';
+                return;
+            }
+            var sats = invoiceSats(challenge.invoice);
+            status.className = 'success';
+            status.textContent =
+                '\u2713 Hard paywall ready' +
+                (sats ? ' \u2014 ' + sats + ' sats per unlock' : '') +
+                (challenge.verify ? ' (self-custodial wallet)' : '');
+            return;
+        }
+        status.className = 'error';
+        if (response.ok) {
+            status.textContent =
+                'That URL is not protected: it answered ' +
+                response.status +
+                ' without asking for a payment.';
+            return;
+        }
+        status.textContent =
+            'The server answered ' + response.status + '. Check the URL \u2014 items live at /content/<id>.';
+    }
+
     // ── Snippet building ──
 
     function escapeAttr(value) {
@@ -122,6 +193,11 @@
         return document.querySelector('input[name="unlock-type"]:checked').value;
     }
 
+    function selectType(value) {
+        var radio = document.querySelector('input[name="unlock-type"][value="' + value + '"]');
+        if (radio) radio.checked = true;
+    }
+
     // ── URL state ──
     //
     // The whole form lives in the hash fragment, so a bookmarked link restores
@@ -133,7 +209,10 @@
     // that keeps it OUT of the URL, so a simple setup stays short.
 
     var URL_FIELDS = [
-        { key: 'type', id: null, def: 'content' }, // radio group, handled below
+        // The unlock type is always written (def: null): hard mode is the
+        // default now, and links made before that carry no type at all — the
+        // only way to tell those old soft setups apart (see applyHash).
+        { key: 'type', id: null, def: null }, // radio group, handled below
         { key: 'username', id: 'username', def: '' },
         { key: 'amount', id: 'amount', def: '1000' },
         { key: 'currency', id: 'currency', def: 'sats' },
@@ -170,6 +249,10 @@
         var params = new URLSearchParams(String(hash || '').replace(/^#/, ''));
         if (!Array.from(params.keys()).length) return false;
 
+        // A saved link without a type predates hard mode: it is a soft
+        // "content on this page" setup and must stay one.
+        if (!params.has('type')) selectType('content');
+
         URL_FIELDS.forEach(function (field) {
             if (!params.has(field.key)) return;
             var value = params.get(field.key);
@@ -178,9 +261,7 @@
                 return;
             }
             // Unlock type: only accept a known value, else leave the default.
-            if (UNLOCK_TYPES.indexOf(value) === -1) return;
-            var radio = document.querySelector('input[name="unlock-type"][value="' + value + '"]');
-            if (radio) radio.checked = true;
+            if (UNLOCK_TYPES.indexOf(value) !== -1) selectType(value);
         });
         return true;
     }
@@ -295,8 +376,18 @@
     function renderPreview(config) {
         if (!window.BlinkPaywall) return;
         if (state.previewInstance) state.previewInstance.destroy();
+        state.previewInstance = null;
         var host = $('preview');
         host.innerHTML = '';
+
+        if (config.type === 'l402' && !config.l402Url) {
+            var note = document.createElement('p');
+            note.className = 'hint';
+            note.style.textAlign = 'center';
+            note.textContent = 'Paste your item\u2019s URL to preview the real paywall here.';
+            host.appendChild(note);
+            return;
+        }
 
         var el = document.createElement('div');
         buildAttributes(config).forEach(function (pair) {
@@ -328,21 +419,34 @@
     }
 
     var hashTimer = null;
+    var previewTimer = null;
 
     function update() {
         var config = readForm();
         $('code').textContent = buildSnippet(config);
         clearTimeout(hashTimer);
         hashTimer = setTimeout(syncHash, 300);
-        $('price-step').style.display = config.type === 'l402' ? 'none' : '';
-        $('hard-mode-note').style.display = config.type === 'l402' ? 'block' : 'none';
+        var hard = config.type === 'l402';
+        // Hard mode: the username and the price live on the server.
+        $('username-step').hidden = hard;
+        $('price-step').hidden = hard;
+        $('hard-mode-note').style.display = hard ? 'block' : 'none';
         ['content', 'secret', 'embed', 'redirect', 'l402'].forEach(function (name) {
             $('field-' + name).hidden = name !== config.type;
         });
         document.querySelectorAll('.type-card').forEach(function (card) {
             card.classList.toggle('selected', card.querySelector('input').checked);
         });
-        renderPreview(config);
+        clearTimeout(previewTimer);
+        if (hard && config.l402Url) {
+            // Mounting the preview asks the server for an invoice: wait for
+            // the typing to stop instead of minting one per keystroke.
+            previewTimer = setTimeout(function () {
+                renderPreview(config);
+            }, 600);
+        } else {
+            renderPreview(config);
+        }
     }
 
     // ── Wiring ──
@@ -350,6 +454,11 @@
     $('check-username').addEventListener('click', checkUsername);
     $('username').addEventListener('keydown', function (event) {
         if (event.key === 'Enter') checkUsername();
+    });
+
+    $('check-l402').addEventListener('click', checkEndpoint);
+    $('l402-url').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') checkEndpoint();
     });
 
     document.querySelectorAll('input, select, textarea').forEach(function (input) {

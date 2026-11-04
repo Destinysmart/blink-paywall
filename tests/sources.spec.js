@@ -181,6 +181,32 @@ describe('createL402Source', () => {
         });
     });
 
+    it('challenge with a verify URL (self-custodial owner) settles via LUD-21', async () => {
+        const fetchMock = vi.fn(async (url) => {
+            if (String(url).includes('/verify/')) {
+                return fakeResponse({ json: { settled: true, preimage: 'p1' } });
+            }
+            return fakeResponse({
+                status: 402,
+                headers: {
+                    'WWW-Authenticate':
+                        'L402 macaroon="mac1", invoice="lnbc10u1rest", verify="https://lnurl.blink.sv/verify/1"',
+                },
+            });
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        const source = createL402Source(config);
+        const challenge = await source.challenge();
+        expect(challenge.verifyUrl).toBe('https://lnurl.blink.sv/verify/1');
+        expect(await source.checkOnce(challenge)).toEqual({ preimage: 'p1' });
+        expect(await source.settle(challenge)).toEqual({ preimage: 'p1' });
+        // Never asks Blink's ledger about an invoice it does not know.
+        expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('graphql'))).toBe(
+            false
+        );
+    });
+
     it('challenge marks a 200 as free', async () => {
         vi.stubGlobal(
             'fetch',

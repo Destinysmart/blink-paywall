@@ -11,8 +11,10 @@
 
 /**
  * Parse a `WWW-Authenticate: L402 ...` challenge header.
- * Also accepts the legacy `LSAT` scheme.
- * @returns {{macaroon: string, invoice: string}|null}
+ * Also accepts the legacy `LSAT` scheme, and the Blink Paywall server's
+ * `verify="<LUD-21 url>"` extension: when the owner is self-custodial the
+ * invoice settles outside Blink's ledger, and that URL is how to find out.
+ * @returns {{macaroon: string, invoice: string, verify?: string}|null}
  */
 export function parseChallenge(header) {
     if (!header) return null;
@@ -20,8 +22,11 @@ export function parseChallenge(header) {
     if (!/^(l402|lsat)\s/i.test(trimmed)) return null;
     const macaroon = trimmed.match(/macaroon\s*=\s*"([^"]+)"/i);
     const invoice = trimmed.match(/invoice\s*=\s*"([^"]+)"/i);
+    const verify = trimmed.match(/verify\s*=\s*"([^"]+)"/i);
     if (!macaroon || !invoice) return null;
-    return { macaroon: macaroon[1], invoice: invoice[1] };
+    const challenge = { macaroon: macaroon[1], invoice: invoice[1] };
+    if (verify) challenge.verify = verify[1];
+    return challenge;
 }
 
 /** Build the Authorization header value for a settled challenge. */

@@ -7,7 +7,8 @@ import globals from 'globals';
  * Environments:
  *   - src/**            browser ES modules, bundled by esbuild.
  *   - tests/**          Vitest + jsdom.
- *   - examples/**       Node ESM (reference L402 server).
+ *   - server/**         the hard-paywall server: Web-standard code (Request/Response/
+ *                       Web Crypto) that runs on Node, Cloudflare Workers and Deno.
  *   - *.config.js       Node ESM tooling.
  *   - generator.js      browser script (generator page, served raw).
  */
@@ -48,7 +49,18 @@ export default [
         },
     },
     {
-        files: ['examples/**/*.mjs', '*.config.js'],
+        files: ['server/**/*.js', 'server/**/*.mjs'],
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'module',
+            globals: { ...globals.node, ...globals.browser, Deno: 'readonly' },
+        },
+        rules: {
+            'no-empty': ['warn', { allowEmptyCatch: true }],
+        },
+    },
+    {
+        files: ['*.config.js'],
         languageOptions: {
             ecmaVersion: 2022,
             sourceType: 'module',

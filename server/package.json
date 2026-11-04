@@ -1,0 +1,13 @@
+{
+    "name": "blink-paywall-server",
+    "version": "0.2.0",
+    "description": "Hard (L402) paywall backend for Blink Paywall — Node, Cloudflare Workers, Deno. Zero dependencies.",
+    "private": true,
+    "type": "module",
+    "license": "AGPL-3.0-only",
+    "scripts": {
+        "start": "node node.mjs",
+        "dev": "npx wrangler dev",
+        "deploy": "npx wrangler deploy"
+    }
+}

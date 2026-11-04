@@ -1,0 +1,14 @@
+{
+  "ebook": {
+    "title": "The Full Article",
+    "price": 210,
+    "currency": "sats",
+    "html": "<article><h2>The Full Article</h2><p>This paragraph was delivered by the server only after the Lightning payment was cryptographically verified. Client-side tricks cannot reach it.</p></article>"
+  },
+  "download": {
+    "title": "Download link",
+    "price": 2.5,
+    "currency": "USD",
+    "redirect": "https://example.com/files/secret.pdf?sig=..."
+  }
+}

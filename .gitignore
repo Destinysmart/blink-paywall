@@ -2,5 +2,8 @@ node_modules/
 # build output — published to GitHub Pages as /v1/blink-paywall.js, built by CI
 /v1/
 coverage/
+# local secrets / state of the Cloudflare Workers deployment of server/
+server/.dev.vars
+server/.wrangler/
 *.log
 .DS_Store
