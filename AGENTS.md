@@ -27,10 +27,12 @@ editor.js             rich-text editor (headings, bold, italic, links, lists, qu
                       content textareas; zero deps; output sanitized to a small whitelist (p, h2, h3,
                       strong, em, a[href], ul, ol, li, blockquote, br). The textarea stays the source
                       of truth; `editor:set` on it tells the editor to re-read.
-index.html+generator.js  generator page, served raw (no build); step 1 picks where the content
-                      lives (hard server / soft page) and each path shows only its own steps. Hard
-                      path: connect to the owner's server (address + ADMIN_PASSWORD, kept in
-                      localStorage only, never in the URL hash), write/price the item here, PUT it there
+index.html+generator.js  generator page, served raw (no build), in the donation-button.blink.sv
+                      pattern: one card (username -> Create paywall), then preview, embed code and
+                      compact cards for what it unlocks, price, and where the paid part lives (soft
+                      page by default; On my server connects to the owner's server — address +
+                      ADMIN_PASSWORD kept in localStorage only, never in the URL hash — writes/prices
+                      the item here and PUTs it there). Dark/light via data-theme on <html>.
 
 server/paywall.js     THE hard-paywall server: createPaywall(options).handle(Request) → Response.
                       Web standard only (fetch/Request/Response/Web Crypto): no node:*, no DOM.
