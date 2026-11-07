@@ -52,6 +52,10 @@ server/items/         one .md / .html per item, header (title/price/currency/red
                       folder at boot, Workers get content.generated.json from build-content.mjs
                       (run by `npm run deploy`). An item file wins over a content.json entry.
 server/wrangler.jsonc, package.json, .dev.vars.example   what "Deploy to Cloudflare" reads
+
+TUTORIAL.md           the guided tour for learners: no-code try, the soft flow in DevTools, the
+                      L402 flow with curl, deploy, reading order. Keep it in step with the flow
+                      below when that changes.
 ```
 
 Build: esbuild → `v1/blink-paywall.js` (IIFE, global `BlinkPaywall`, `.css`
@@ -60,8 +64,10 @@ published URL is `<pages-origin>/v1/blink-paywall.js`. `server/` has no build.
 
 Hosting: GitHub Pages from `main` via Actions. This copy is Destiny's
 continuation of Kemal's `blinkbitcoin/blink-paywall` and is served from
-`https://destinysmart.github.io/blink-paywall/`; the plan is to propose it to
-Blink once tested, so the home is a single search-and-replace away:
+`https://destinysmart.github.io/blink-paywall/`; Blink decided in November
+2026 not to take it on as a product, so it stays here as an open-source
+learning project with `TUTORIAL.md` as the front door. Should that change,
+the home is a single search-and-replace away:
 `generator.js` derives the widget URL from the page's own origin (nothing to
 swap there), and these carry the repo / Pages host literally — `index.html`
 (canonical, og:url, repo links, Deploy to Cloudflare), `README.md`,

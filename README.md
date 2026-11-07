@@ -7,6 +7,9 @@ account. No API key, no account signup for visitors.
 Generator (for non-technical users):
 **https://destinysmart.github.io/blink-paywall/**
 
+New here? [TUTORIAL.md](TUTORIAL.md) walks through how it all works, from a
+five-minute try with no code to reading the token bytes with `curl`.
+
 Two ways to run it:
 
 - **Hard paywall (recommended)** — the content stays on *your* server and is
